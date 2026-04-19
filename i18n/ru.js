@@ -326,6 +326,7 @@ LANG_RU.tasks_status_completed_source = 'Закрыто из плана/поло
 LANG_RU.tasks_empty_title = 'Задач нет';
 LANG_RU.tasks_empty_text = 'Добавьте задачу кнопкой «В Задачи» в карточке плана или поломки';
 LANG_RU.tasks_append_saved = 'Дополнение сохранено';
+LANG_RU.tasks_sync_append_failed = 'Не удалось записать дополнение в план или поломку';
 LANG_RU.tasks_returned = 'Задача отмечена как возвращённая';
 LANG_RU.tasks_completed = 'Задача завершена';
 LANG_RU.tasks_completed_linked = 'Задача закрыта: источник уже завершён в журнале';

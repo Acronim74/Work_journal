@@ -311,6 +311,7 @@ LANG_EN.tasks_status_completed_source = 'Closed from plans/issues';
 LANG_EN.tasks_empty_title = 'No tasks';
 LANG_EN.tasks_empty_text = 'Use “To tasks” on a plan or issue card';
 LANG_EN.tasks_append_saved = 'Append saved';
+LANG_EN.tasks_sync_append_failed = 'Could not write append to plan or issue';
 LANG_EN.tasks_returned = 'Marked as returned';
 LANG_EN.tasks_completed = 'Task completed';
 LANG_EN.tasks_completed_linked = 'Task closed: source already logged in journal';

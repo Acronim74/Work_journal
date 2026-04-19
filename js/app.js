@@ -845,6 +845,68 @@ function taskCreateSourceLabelHtml(snap, badgeText) {
     : ''}`;
 }
 
+/** Одна строка дополнения в плане/поломке (как в журнале дат). */
+function formatTaskAppendLineForSource(atIso, text) {
+  const day = String(atIso || '').split('T')[0];
+  const [y, m, d] = day.split('-');
+  const dateHuman = (y && m && d) ? L.formatDate(y, m, d) : String(atIso || '').slice(0, 10);
+  const body = String(text || '').trim();
+  if (!body) return '';
+  return `[${dateHuman}] ${body}`;
+}
+
+async function appendTaskNoteToPlanOrIssue(sourceType, sourceId, atIso, text) {
+  const line = formatTaskAppendLineForSource(atIso, text);
+  if (!line) return;
+  const ts = new Date().toISOString();
+  if (sourceType === 'plan') {
+    const plan = await dbGet('plans', sourceId);
+    if (!plan || plan.status === 'done') return;
+    const base = String(plan.actions || '').trimEnd();
+    const next = base ? `${base}\n\n${line}` : line;
+    await dbPutPlan({ ...plan, actions: next, updatedAt: ts });
+  } else if (sourceType === 'issue') {
+    const issue = await dbGet('issues', sourceId);
+    if (!issue || issue.status === 'resolved') return;
+    const base = String(issue.notes || '').trimEnd();
+    const next = base ? `${base}\n\n${line}` : line;
+    await dbPutIssue({ ...issue, notes: next, updatedAt: ts });
+  }
+}
+
+/** Все дополнения из appendLog — в план/поломку (без повторов той же строки). */
+async function flushTaskAppendLogToPlanOrIssue(task) {
+  if (!task || !task.sourceId) return;
+  const logs = Array.isArray(task.appendLog)
+    ? task.appendLog.filter(x => x && String(x.text || '').trim())
+    : [];
+  if (!logs.length) return;
+  const ts = new Date().toISOString();
+  if (task.sourceType === 'plan') {
+    const plan = await dbGet('plans', task.sourceId);
+    if (!plan || plan.status === 'done') return;
+    let body = String(plan.actions || '').trimEnd();
+    for (const entry of logs) {
+      const line = formatTaskAppendLineForSource(entry.at, entry.text);
+      if (!line || body.includes(line)) continue;
+      body = body ? `${body}\n\n${line}` : line;
+    }
+    const prev = String(plan.actions || '').trimEnd();
+    if (body !== prev) await dbPutPlan({ ...plan, actions: body, updatedAt: ts });
+  } else if (task.sourceType === 'issue') {
+    const issue = await dbGet('issues', task.sourceId);
+    if (!issue || issue.status === 'resolved') return;
+    let body = String(issue.notes || '').trimEnd();
+    for (const entry of logs) {
+      const line = formatTaskAppendLineForSource(entry.at, entry.text);
+      if (!line || body.includes(line)) continue;
+      body = body ? `${body}\n\n${line}` : line;
+    }
+    const prev = String(issue.notes || '').trimEnd();
+    if (body !== prev) await dbPutIssue({ ...issue, notes: body, updatedAt: ts });
+  }
+}
+
 let taskCreateDraft = null; // { sourceType, sourceId }
 let appendingTaskId = null;
 let completingTaskId = null;
@@ -966,9 +1028,18 @@ async function saveTaskAppendModal() {
   log.push({ at: now, text });
   await dbPutTask({ ...t, appendLog: log, updatedAt: now });
 
+  try {
+    await appendTaskNoteToPlanOrIssue(t.sourceType, t.sourceId, now, text);
+  } catch (e) {
+    console.error(e);
+    toast(L.tasks_sync_append_failed, 'error');
+  }
+
   toast(L.tasks_append_saved, 'success');
   closeTaskAppendModal();
   await renderTasks();
+  if (currentPage === 'plans') await renderPlans();
+  if (currentPage === 'issues') await renderIssues();
   scheduleSharedDbSave();
 }
 
@@ -977,8 +1048,17 @@ async function markTaskReturned(taskId) {
   if (!t || !taskIsOpenStatus(t.status)) return;
   const now = new Date().toISOString();
   await dbPutTask({ ...t, status: TASK_ST.RETURNED, updatedAt: now });
+  const t2 = await dbGet('tasks', taskId);
+  try {
+    await flushTaskAppendLogToPlanOrIssue(t2);
+  } catch (e) {
+    console.error(e);
+    toast(L.tasks_sync_append_failed, 'error');
+  }
   toast(L.tasks_returned, 'success');
   await renderTasks();
+  if (currentPage === 'plans') await renderPlans();
+  if (currentPage === 'issues') await renderIssues();
   scheduleSharedDbSave();
 }
 

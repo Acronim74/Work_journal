@@ -311,6 +311,7 @@ LANG_PL.tasks_status_completed_source = 'Zamknięte z planów/awarii';
 LANG_PL.tasks_empty_title = 'Brak zadań';
 LANG_PL.tasks_empty_text = 'Użyj „Do zadań” na karcie planu lub awarii';
 LANG_PL.tasks_append_saved = 'Dopisek zapisany';
+LANG_PL.tasks_sync_append_failed = 'Nie udało się dopisać do planu lub awarii';
 LANG_PL.tasks_returned = 'Oznaczono jako zwrócone';
 LANG_PL.tasks_completed = 'Zadanie zakończone';
 LANG_PL.tasks_completed_linked = 'Zadanie zamknięte: źródło już zapisane w dzienniku';
