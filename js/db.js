@@ -1,10 +1,10 @@
 /* ============================================================
    db.js — IndexedDB wrapper
-   Stores: entries, categories, snapshots
+   Stores: entries, categories, snapshots, issues, plans, meta, tasks
    ============================================================ */
 
 const DB_NAME    = 'WorkJournalDB';
-const DB_VERSION = 4;          // v4: резерв meta (совместимость с существующими БД)
+const DB_VERSION = 5;          // v5: задачи (tasks)
 
 let db;
 
@@ -41,6 +41,14 @@ function initDB() {
       }
       if (!d.objectStoreNames.contains('meta')) {
         d.createObjectStore('meta', { keyPath: 'key' });
+      }
+      // v5
+      if (!d.objectStoreNames.contains('tasks')) {
+        const tk = d.createObjectStore('tasks', { keyPath: 'id', autoIncrement: true });
+        tk.createIndex('sourceType', 'sourceType');
+        tk.createIndex('sourceId',   'sourceId');
+        tk.createIndex('status',     'status');
+        tk.createIndex('source',     ['sourceType', 'sourceId']);
       }
     };
 
@@ -125,7 +133,7 @@ function dbGet(store, id) {
  * хранилищ может читаться «до» коммита записей/категорий, часть «после».
  */
 function dbReadAllForExport() {
-  const stores = ['entries', 'categories', 'issues', 'plans', 'snapshots'];
+  const stores = ['entries', 'categories', 'issues', 'plans', 'snapshots', 'tasks'];
   return new Promise((resolve, reject) => {
     if (!db) {
       reject(new Error('DB not initialized'));
@@ -159,3 +167,9 @@ function dbGetAllPlans()     { return dbAll('plans'); }
 function dbAddPlan(o)        { return dbAdd('plans', o); }
 function dbPutPlan(o)        { return dbPut('plans', o); }
 function dbDeletePlan(id)    { return dbDelete('plans', id); }
+
+/* ── TASKS ── */
+function dbGetAllTasks()     { return dbAll('tasks'); }
+function dbAddTask(o)        { return dbAdd('tasks', o); }
+function dbPutTask(o)        { return dbPut('tasks', o); }
+function dbDeleteTask(id)   { return dbDelete('tasks', id); }

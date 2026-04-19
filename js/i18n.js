@@ -30,6 +30,9 @@ function setLanguage(code) {
   renderJournal();
   renderCatGrid();
   populateCatSelects();
+  if (typeof currentPage !== 'undefined' && currentPage === 'tasks' && typeof renderTasks === 'function') {
+    renderTasks();
+  }
   renderLangPicker();
   if (typeof updateElectronDbInfo === 'function') updateElectronDbInfo();
 }

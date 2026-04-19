@@ -2,7 +2,7 @@
    app.js — main application logic
    ============================================================ */
 
-const PAGES = ['journal', 'categories', 'reports', 'issues', 'plans', 'archive', 'settings'];
+const PAGES = ['journal', 'categories', 'reports', 'issues', 'plans', 'tasks', 'archive', 'settings'];
 /** Относительный путь к файлу обмена (Electron): см. main.js EXCHANGE_DIR / EXCHANGE_FILENAME */
 const EXCHANGE_FILE_REL = 'journal-exchange/work-journal-backup.json';
 
@@ -48,6 +48,8 @@ async function refresh() {
   renderCatGrid();
   populateCatSelects();
   populateReportCatSelect();
+  await reconcileTasksWithSources();
+  if (currentPage === 'tasks') await renderTasks();
 }
 
 function updateHeaderDate() {
@@ -115,6 +117,9 @@ function showPage(page) {
     populateCategorySelect('planFilterCat', true);
     populateCategorySelect('pCat', false);
     renderPlans();
+  }
+  if (page === 'tasks') {
+    renderTasks();
   }
   if (page === 'settings') {
     updateElectronDbInfo();
@@ -497,7 +502,7 @@ function clearPresetActive() {
    EXPORT / IMPORT  (экспорт — отдельный файл; зеркало только work-journal-db.json)
    ============================================================ */
 
-const EXPORT_FORMAT_VERSION = 2;
+const EXPORT_FORMAT_VERSION = 3;
 
 async function gatherExportPayload() {
   const out = await dbReadAllForExport();
@@ -509,6 +514,7 @@ async function gatherExportPayload() {
     issues:     out.issues,
     plans:      out.plans,
     snapshots:  out.snapshots,
+    tasks:      out.tasks,
   };
 }
 
@@ -527,6 +533,7 @@ async function applyImportedPayload(data, opts = {}) {
   await dbClear('issues');
   await dbClear('plans');
   await dbClear('snapshots');
+  await dbClear('tasks');
 
   for (const e of data.entries) await dbAdd('entries', e);
   for (const c of data.categories) await dbAdd('categories', c);
@@ -534,9 +541,11 @@ async function applyImportedPayload(data, opts = {}) {
   const issues = Array.isArray(data.issues) ? data.issues : [];
   const plans = Array.isArray(data.plans) ? data.plans : [];
   const snapshots = Array.isArray(data.snapshots) ? data.snapshots : [];
+  const tasks = Array.isArray(data.tasks) ? data.tasks : [];
   for (const i of issues) await dbAdd('issues', i);
   for (const p of plans) await dbAdd('plans', p);
   for (const s of snapshots) await dbAdd('snapshots', s);
+  for (const t of tasks) await dbAdd('tasks', t);
 
   await refresh();
   return true;
@@ -679,6 +688,10 @@ async function clearAllData() {
   await createSnapshot(SNAP_REASON.clear);
   await dbClear('entries');
   await dbClear('categories');
+  await dbClear('issues');
+  await dbClear('plans');
+  await dbClear('tasks');
+  await dbClear('snapshots');
   await refresh();
   toast(L.toast_cleared, 'success');
 }
@@ -698,6 +711,624 @@ function highlight(text, query) {
   if (!query) return esc(text);
   return esc(text).replace(new RegExp('(' + escRe(query) + ')', 'gi'),
     '<span class="hl">$1</span>');
+}
+
+/* ============================================================
+   TASKS  (очередь: план / поломка → журнал — одна запись, без двойного закрытия)
+   ============================================================ */
+const TASK_ST = { ACTIVE: 'active', RETURNED: 'returned', COMPLETED: 'completed' };
+const TASK_REASON = { TASK: 'task', SOURCE: 'source' };
+
+function taskIsOpenStatus(st) {
+  return st === TASK_ST.ACTIVE || st === TASK_ST.RETURNED;
+}
+
+function taskEscHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function dbFindOpenTaskForSource(sourceType, sourceId) {
+  const all = await dbGetAllTasks();
+  return all.find(t => t && t.sourceType === sourceType && t.sourceId === sourceId && taskIsOpenStatus(t.status)) || null;
+}
+
+async function deleteTasksForSource(sourceType, sourceId) {
+  const all = await dbGetAllTasks();
+  const toDelete = all.filter(t => t && t.sourceType === sourceType && t.sourceId === sourceId);
+  for (const t of toDelete) await dbDeleteTask(t.id);
+}
+
+async function markOpenTasksCompletedForSource(sourceType, sourceId, { journalEntryId, completedReason }) {
+  const all = await dbGetAllTasks();
+  const now = new Date().toISOString();
+  for (const t of all) {
+    if (!t || t.sourceType !== sourceType || t.sourceId !== sourceId) continue;
+    if (!taskIsOpenStatus(t.status)) continue;
+    await dbPutTask({
+      ...t,
+      status: TASK_ST.COMPLETED,
+      completedAt: now,
+      completedReason,
+      journalEntryId: journalEntryId || t.journalEntryId || null,
+      updatedAt: now,
+    });
+  }
+}
+
+async function reopenTasksCompletedBySource(sourceType, sourceId) {
+  const all = await dbGetAllTasks();
+  const now = new Date().toISOString();
+  for (const t of all) {
+    if (!t || t.sourceType !== sourceType || t.sourceId !== sourceId) continue;
+    if (t.status !== TASK_ST.COMPLETED) continue;
+    if (t.completedReason !== TASK_REASON.SOURCE) continue;
+    await dbPutTask({
+      ...t,
+      status: TASK_ST.ACTIVE,
+      completedAt: null,
+      completedReason: null,
+      journalEntryId: null,
+      updatedAt: now,
+    });
+  }
+}
+
+async function reconcileTasksWithSources() {
+  const [issues, plans, tasks] = await Promise.all([
+    dbGetAllIssues(),
+    dbGetAllPlans(),
+    dbGetAllTasks(),
+  ]);
+  const issueById = new Map(issues.map(i => [i.id, i]));
+  const planById  = new Map(plans.map(p => [p.id, p]));
+
+  for (const t of tasks) {
+    if (!t || !taskIsOpenStatus(t.status)) continue;
+    if (t.sourceType === 'issue') {
+      const iss = issueById.get(t.sourceId);
+      if (!iss) continue;
+      if (iss.status === 'resolved' && iss.resolutionEntryId) {
+        await markOpenTasksCompletedForSource('issue', iss.id, {
+          journalEntryId: iss.resolutionEntryId,
+          completedReason: TASK_REASON.SOURCE,
+        });
+      }
+    } else if (t.sourceType === 'plan') {
+      const pl = planById.get(t.sourceId);
+      if (!pl) continue;
+      if (pl.status === 'done' && pl.completionEntryId) {
+        await markOpenTasksCompletedForSource('plan', pl.id, {
+          journalEntryId: pl.completionEntryId,
+          completedReason: TASK_REASON.SOURCE,
+        });
+      }
+    }
+  }
+}
+
+function taskSnapshotFromIssue(issue) {
+  return {
+    title: issue?.desc || '',
+    category: issue?.category || '',
+  };
+}
+
+function taskSnapshotFromPlan(plan) {
+  return {
+    title: plan?.desc || '',
+    category: plan?.category || '',
+  };
+}
+
+let taskCreateDraft = null; // { sourceType, sourceId }
+let appendingTaskId = null;
+let completingTaskId = null;
+
+function closeTaskCreateModal() {
+  document.getElementById('taskCreateModal')?.classList.remove('open');
+  taskCreateDraft = null;
+}
+
+async function openTaskCreateFromIssue(issueId) {
+  const existing = await dbFindOpenTaskForSource('issue', issueId);
+  if (existing) { toast(L.tasks_err_active_exists, 'error'); return; }
+
+  const issues = await dbGetAllIssues();
+  const issue = issues.find(i => i.id === issueId);
+  if (!issue) { toast(L.tasks_err_missing_source, 'error'); return; }
+  if (issue.status === 'resolved') { toast(L.tasks_err_source_closed, 'error'); return; }
+
+  taskCreateDraft = { sourceType: 'issue', sourceId: issueId };
+  const snap = taskSnapshotFromIssue(issue);
+  document.getElementById('taskCreateSourceLabel').textContent =
+    `${L.tasks_badge_issue}: ${snap.title || '—'}` + (snap.category ? ` · ${snap.category}` : '');
+  document.getElementById('taskCreateAssignees').value = '';
+  document.getElementById('taskCreateModal')?.classList.add('open');
+  applyI18n();
+  setTimeout(() => document.getElementById('taskCreateAssignees')?.focus(), 50);
+}
+
+async function openTaskCreateFromPlan(planId) {
+  const existing = await dbFindOpenTaskForSource('plan', planId);
+  if (existing) { toast(L.tasks_err_active_exists, 'error'); return; }
+
+  const plans = await dbGetAllPlans();
+  const plan = plans.find(p => p.id === planId);
+  if (!plan) { toast(L.tasks_err_missing_source, 'error'); return; }
+  if (plan.status === 'done') { toast(L.tasks_err_source_closed, 'error'); return; }
+
+  taskCreateDraft = { sourceType: 'plan', sourceId: planId };
+  const snap = taskSnapshotFromPlan(plan);
+  document.getElementById('taskCreateSourceLabel').textContent =
+    `${L.tasks_badge_plan}: ${snap.title || '—'}` + (snap.category ? ` · ${snap.category}` : '');
+  document.getElementById('taskCreateAssignees').value = '';
+  document.getElementById('taskCreateModal')?.classList.add('open');
+  applyI18n();
+  setTimeout(() => document.getElementById('taskCreateAssignees')?.focus(), 50);
+}
+
+async function saveTaskCreateModal() {
+  if (!taskCreateDraft) { closeTaskCreateModal(); return; }
+  const assigneesText = document.getElementById('taskCreateAssignees')?.value.trim() || '';
+
+  const { sourceType, sourceId } = taskCreateDraft;
+  const existing = await dbFindOpenTaskForSource(sourceType, sourceId);
+  if (existing) { toast(L.tasks_err_active_exists, 'error'); closeTaskCreateModal(); return; }
+
+  let snap = { title: '', category: '' };
+  if (sourceType === 'issue') {
+    const issues = await dbGetAllIssues();
+    const issue = issues.find(i => i.id === sourceId);
+    if (!issue) { toast(L.tasks_err_missing_source, 'error'); closeTaskCreateModal(); return; }
+    if (issue.status === 'resolved') { toast(L.tasks_err_source_closed, 'error'); closeTaskCreateModal(); return; }
+    snap = taskSnapshotFromIssue(issue);
+  } else {
+    const plans = await dbGetAllPlans();
+    const plan = plans.find(p => p.id === sourceId);
+    if (!plan) { toast(L.tasks_err_missing_source, 'error'); closeTaskCreateModal(); return; }
+    if (plan.status === 'done') { toast(L.tasks_err_source_closed, 'error'); closeTaskCreateModal(); return; }
+    snap = taskSnapshotFromPlan(plan);
+  }
+
+  const now = new Date().toISOString();
+  await dbAddTask({
+    sourceType,
+    sourceId,
+    status: TASK_ST.ACTIVE,
+    assigneesText,
+    sourceTitle: snap.title,
+    sourceCategory: snap.category,
+    appendLog: [],
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  toast(L.tasks_toast_enqueued, 'success');
+  closeTaskCreateModal();
+  if (currentPage === 'tasks') await renderTasks();
+  if (currentPage === 'issues') await renderIssues();
+  if (currentPage === 'plans') await renderPlans();
+  scheduleSharedDbSave();
+}
+
+function closeTaskAppendModal() {
+  document.getElementById('taskAppendModal')?.classList.remove('open');
+  appendingTaskId = null;
+}
+
+async function openTaskAppendModal(taskId) {
+  const t = await dbGet('tasks', taskId);
+  if (!t) return;
+  if (!taskIsOpenStatus(t.status)) { toast(L.tasks_err_source_closed, 'error'); return; }
+  appendingTaskId = taskId;
+  document.getElementById('taskAppendText').value = '';
+  document.getElementById('taskAppendModal')?.classList.add('open');
+  setTimeout(() => document.getElementById('taskAppendText')?.focus(), 50);
+}
+
+async function saveTaskAppendModal() {
+  if (!appendingTaskId) { closeTaskAppendModal(); return; }
+  const text = document.getElementById('taskAppendText')?.value.trim() || '';
+  if (!text) { toast(L.tasks_val_append, 'error'); return; }
+
+  const t = await dbGet('tasks', appendingTaskId);
+  if (!t) { closeTaskAppendModal(); return; }
+  if (!taskIsOpenStatus(t.status)) { toast(L.tasks_err_source_closed, 'error'); closeTaskAppendModal(); return; }
+
+  const now = new Date().toISOString();
+  const log = Array.isArray(t.appendLog) ? t.appendLog.slice() : [];
+  log.push({ at: now, text });
+  await dbPutTask({ ...t, appendLog: log, updatedAt: now });
+
+  toast(L.tasks_append_saved, 'success');
+  closeTaskAppendModal();
+  await renderTasks();
+  scheduleSharedDbSave();
+}
+
+async function markTaskReturned(taskId) {
+  const t = await dbGet('tasks', taskId);
+  if (!t || !taskIsOpenStatus(t.status)) return;
+  const now = new Date().toISOString();
+  await dbPutTask({ ...t, status: TASK_ST.RETURNED, updatedAt: now });
+  toast(L.tasks_returned, 'success');
+  await renderTasks();
+  scheduleSharedDbSave();
+}
+
+function closeTaskCompleteModal() {
+  document.getElementById('taskCompleteModal')?.classList.remove('open');
+  completingTaskId = null;
+}
+
+async function cancelTaskCompleteModal() {
+  if (document.getElementById('taskCompleteModal')?.classList.contains('open')) {
+    await rollbackPhotos();
+  }
+  closeTaskCompleteModal();
+}
+
+function addTaskCompletePartRow(name = '', qty = '') {
+  const list = document.getElementById('tcPartsList');
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'resolve-part-item';
+  row.innerHTML = `
+    <input type="text" class="form-input part-name"
+           placeholder="${esc(L.field_partName)}" value="${esc(name)}">
+    <input type="text" class="form-input part-qty"
+           placeholder="${esc(L.field_partQty)}"  value="${esc(qty)}">
+    <button class="btn btn-danger btn-icon btn-sm"
+            onclick="this.closest('.resolve-part-item').remove()">✕</button>`;
+  list.appendChild(row);
+  if (!name) row.querySelector('.part-name').focus();
+}
+
+async function openTaskCompleteModal(taskId) {
+  const t = await dbGet('tasks', taskId);
+  if (!t) return;
+  if (!taskIsOpenStatus(t.status)) { toast(L.tasks_err_source_closed, 'error'); return; }
+
+  completingTaskId = taskId;
+  const badge = t.sourceType === 'plan' ? L.tasks_badge_plan : L.tasks_badge_issue;
+  const title = t.sourceTitle || '';
+  const cat = t.sourceCategory || '';
+  document.getElementById('taskCompleteRefLabel').textContent =
+    `${badge}: ${title || '—'}` + (cat ? ` · ${cat}` : '');
+
+  document.getElementById('tcDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('tcActions').value = '';
+  document.getElementById('tcPartsList').innerHTML = '';
+  initPhotoPicker([], 'journal', 'tcPhotoPickerGrid', 'tcPhotoCounter');
+
+  document.getElementById('taskCompleteModal')?.classList.add('open');
+  applyI18n();
+  setTimeout(() => document.getElementById('tcActions')?.focus(), 80);
+}
+
+async function saveTaskCompleteModal() {
+  if (!completingTaskId) return;
+
+  const task = await dbGet('tasks', completingTaskId);
+  if (!task || !taskIsOpenStatus(task.status)) {
+    toast(L.tasks_err_source_closed, 'error');
+    await cancelTaskCompleteModal();
+    return;
+  }
+
+  const when = document.getElementById('tcDate')?.value || '';
+  if (!when) { toast(L.val_date, 'error'); return; }
+
+  const actions = document.getElementById('tcActions')?.value.trim() || '';
+  const parts = [];
+  document.querySelectorAll('#tcPartsList .resolve-part-item').forEach(row => {
+    const name = row.querySelector('.part-name').value.trim();
+    const qty  = row.querySelector('.part-qty').value.trim();
+    if (name) parts.push({ name, qty });
+  });
+
+  const now = new Date().toISOString();
+
+  if (task.sourceType === 'issue') {
+    const issues = await dbGetAllIssues();
+    const issue = issues.find(i => i.id === task.sourceId);
+    if (!issue) { toast(L.tasks_err_missing_source, 'error'); await cancelTaskCompleteModal(); return; }
+
+    if (issue.status === 'resolved' && issue.resolutionEntryId) {
+      await rollbackPhotos();
+      await dbPutTask({
+        ...task,
+        status: TASK_ST.COMPLETED,
+        completedAt: now,
+        completedReason: TASK_REASON.TASK,
+        journalEntryId: issue.resolutionEntryId,
+        updatedAt: now,
+      });
+      toast(L.tasks_completed_linked, 'success');
+      await cancelTaskCompleteModal();
+      await refresh();
+      updateStats();
+      if (currentPage === 'issues') await renderIssues();
+      if (currentPage === 'tasks') await renderTasks();
+      scheduleSharedDbSave();
+      return;
+    }
+
+    const photos = await commitPhotos();
+
+    const description = L.issue_resolve_entry_title(issue.desc || '');
+    const entry = {
+      date: when,
+      category: issue.category || '',
+      description,
+      actions,
+      parts,
+      photos,
+      fromIssueId: issue.id,
+      issueFoundDate: issue.date,
+      issueResolvedDate: when,
+    };
+    const entryId = await dbAdd('entries', entry);
+
+    await dbPutIssue({
+      ...issue,
+      status: 'resolved',
+      resolvedAt: when,
+      resolutionActions: actions,
+      resolutionParts: parts,
+      resolutionPhotos: photos,
+      resolutionEntryId: entryId,
+      updatedAt: now,
+    });
+
+    await dbPutTask({
+      ...task,
+      status: TASK_ST.COMPLETED,
+      completedAt: now,
+      completedReason: TASK_REASON.TASK,
+      journalEntryId: entryId,
+      updatedAt: now,
+    });
+
+    toast(L.toast_issue_resolved_logged, 'success');
+    await cancelTaskCompleteModal();
+    await refresh();
+    updateStats();
+    if (currentPage === 'issues') await renderIssues();
+    if (currentPage === 'tasks') await renderTasks();
+    scheduleSharedDbSave();
+    return;
+  }
+
+  // plan
+  const plans = await dbGetAllPlans();
+  const plan = plans.find(p => p.id === task.sourceId);
+  if (!plan) { toast(L.tasks_err_missing_source, 'error'); await cancelTaskCompleteModal(); return; }
+
+  if (plan.status === 'done' && plan.completionEntryId) {
+    await rollbackPhotos();
+    await dbPutTask({
+      ...task,
+      status: TASK_ST.COMPLETED,
+      completedAt: now,
+      completedReason: TASK_REASON.TASK,
+      journalEntryId: plan.completionEntryId,
+      updatedAt: now,
+    });
+    toast(L.tasks_completed_linked, 'success');
+    await cancelTaskCompleteModal();
+    await refresh();
+    updateStats();
+    if (currentPage === 'plans') await renderPlans();
+    if (currentPage === 'tasks') await renderTasks();
+    scheduleSharedDbSave();
+    return;
+  }
+
+  const photos = await commitPhotos();
+
+  const description = L.plan_resolve_entry_title(plan.desc || '');
+  const entry = {
+    date: when,
+    category: plan.category || '',
+    description,
+    actions,
+    parts,
+    photos,
+    fromPlanId: plan.id,
+    planPlannedDate: plan.datePlanned,
+    planDoneDate: when,
+  };
+  const entryId = await dbAdd('entries', entry);
+
+  await dbPutPlan({
+    ...plan,
+    status: 'done',
+    finishedAt: when,
+    completionActions: actions,
+    completionParts: parts,
+    completionPhotos: photos,
+    completionEntryId: entryId,
+    updatedAt: now,
+  });
+
+  await dbPutTask({
+    ...task,
+    status: TASK_ST.COMPLETED,
+    completedAt: now,
+    completedReason: TASK_REASON.TASK,
+    journalEntryId: entryId,
+    updatedAt: now,
+  });
+
+  toast(L.toast_plan_done_logged, 'success');
+  await cancelTaskCompleteModal();
+  await refresh();
+  updateStats();
+  if (currentPage === 'plans') await renderPlans();
+  if (currentPage === 'tasks') await renderTasks();
+  scheduleSharedDbSave();
+}
+
+function clearTaskFilters() {
+  const s = document.getElementById('taskSearch');
+  if (s) s.value = '';
+  const f = document.getElementById('taskFilterStatus');
+  if (f) f.value = 'open';
+  renderTasks();
+}
+
+async function renderTasks() {
+  const search = (document.getElementById('taskSearch')?.value || '').toLowerCase().trim();
+  const stF = document.getElementById('taskFilterStatus')?.value || 'open';
+
+  let items = await dbGetAllTasks();
+
+  const matchesSearch = (t) => {
+    if (!search) return true;
+    const hay = [
+      t.sourceTitle,
+      t.sourceCategory,
+      t.assigneesText,
+      ...(Array.isArray(t.appendLog) ? t.appendLog.map(x => x && x.text) : []),
+    ].map(x => String(x || '').toLowerCase()).join(' | ');
+    return hay.includes(search);
+  };
+  items = items.filter(matchesSearch);
+
+  if (stF === 'active') items = items.filter(t => t.status === TASK_ST.ACTIVE);
+  else if (stF === 'returned') items = items.filter(t => t.status === TASK_ST.RETURNED);
+  else if (stF === 'open') items = items.filter(t => taskIsOpenStatus(t.status));
+  else if (stF === 'completed') items = items.filter(t => t.status === TASK_ST.COMPLETED);
+
+  items.sort((a, b) => (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || ''));
+
+  const container = document.getElementById('tasksList');
+  if (!container) return;
+
+  if (!items.length) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">🗂</div>
+      <div class="empty-state-title">${esc(L.tasks_empty_title)}</div>
+      <div class="empty-state-text">${esc(L.tasks_empty_text)}</div>
+    </div>`;
+    applyI18n();
+    return;
+  }
+
+  const badge = (t) => (t.sourceType === 'plan' ? L.tasks_badge_plan : L.tasks_badge_issue);
+  const stLabel = (t) => {
+    if (t.status === TASK_ST.ACTIVE) return L.tasks_status_active;
+    if (t.status === TASK_ST.RETURNED) return L.tasks_status_returned;
+    if (t.status === TASK_ST.COMPLETED && t.completedReason === TASK_REASON.SOURCE) return L.tasks_status_completed_source;
+    return L.tasks_status_completed;
+  };
+
+  container.innerHTML = items.map(t => {
+    const title = highlight(esc(t.sourceTitle || '—'), search);
+    const cat = t.sourceCategory ? `<span class="cat-chip">${esc(t.sourceCategory)}</span>` : '';
+    const assignees = t.assigneesText
+      ? `<div class="card-notes">${esc(L.tasks_assigned_prefix)} ${highlight(esc(t.assigneesText), search)}</div>`
+      : '';
+
+    const logs = Array.isArray(t.appendLog) ? t.appendLog.filter(x => x && x.text) : [];
+    const logHtml = logs.length
+      ? `<div class="issue-resolution-block" style="margin-top:8px">
+           <div class="issue-resolution-label">${esc(L.tasks_log_title)}</div>
+           ${logs.slice().reverse().map(x => {
+             const [y, m, d] = String(x.at || '').split('T')[0].split('-');
+             const dt = (y && m && d) ? esc(L.formatDate(y, m, d)) : esc(x.at || '');
+             return `<div class="card-section-content"><span class="muted">${dt}</span> — ${highlight(esc(x.text), search)}</div>`;
+           }).join('')}
+         </div>`
+      : '';
+
+    const returnBtn = (t.status === TASK_ST.ACTIVE)
+      ? `<button class="btn btn-ghost btn-sm" onclick="markTaskReturned(${t.id})">${esc(L.tasks_btn_return)}</button>`
+      : '';
+
+    const actions = taskIsOpenStatus(t.status)
+      ? `<div class="card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openTaskAppendModal(${t.id})">${esc(L.tasks_btn_append)}</button>
+          ${returnBtn}
+          <button class="btn btn-ghost btn-sm" onclick="openTaskCompleteModal(${t.id})">${esc(L.plan_mark_done)}</button>
+          <button class="btn btn-ghost btn-sm" onclick="printTaskSheet(${t.id})">${esc(L.btn_print)}</button>
+        </div>`
+      : `<div class="card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="printTaskSheet(${t.id})">${esc(L.btn_print)}</button>
+        </div>`;
+
+    return `<div class="card">
+      <div class="card-header">
+        <div class="card-meta">
+          <span class="cat-chip">${esc(badge(t))}</span>
+          ${cat}
+          <span class="status-badge status-${t.status === TASK_ST.COMPLETED ? 'resolved' : 'open'}">${esc(stLabel(t))}</span>
+        </div>
+        ${actions}
+      </div>
+      <div class="card-title">${title}</div>
+      ${assignees}
+      ${logHtml}
+    </div>`;
+  }).join('');
+
+  applyI18n();
+}
+
+async function printTaskSheet(taskId) {
+  const t = await dbGet('tasks', taskId);
+  if (!t) return;
+
+  const badge = t.sourceType === 'plan' ? L.tasks_badge_plan : L.tasks_badge_issue;
+  const logs = Array.isArray(t.appendLog) ? t.appendLog.filter(x => x && x.text) : [];
+  const logsHtml = logs.length
+    ? `<div class="rp-block"><div class="rp-h3">${taskEscHtml(L.tasks_log_title)}</div>
+        ${logs.map(x => {
+          const [y, m, d] = String(x.at || '').split('T')[0].split('-');
+          const dt = (y && m && d) ? taskEscHtml(L.formatDate(y, m, d)) : taskEscHtml(x.at || '');
+          return `<div class="rp-line"><span class="rp-muted">${dt}</span> — ${taskEscHtml(x.text)}</div>`;
+        }).join('')}
+      </div>`
+    : '';
+
+  const assignees = t.assigneesText
+    ? `<div class="rp-line"><b>${taskEscHtml(L.tasks_assigned_prefix)}</b> ${taskEscHtml(t.assigneesText)}</div>`
+    : '';
+
+  const body = `
+    <div class="rp-title">${taskEscHtml(L.tasks_print_title)}</div>
+    <div class="rp-meta">${taskEscHtml(badge)} · ${taskEscHtml(t.sourceCategory || L.report_no_category)}</div>
+    <div class="rp-block">
+      <div class="rp-h3">${taskEscHtml(L.tasks_field_source)}</div>
+      <div class="rp-line"><b>${taskEscHtml(t.sourceTitle || '—')}</b></div>
+      ${assignees}
+    </div>
+    ${logsHtml}
+  `;
+
+  const now = new Date();
+  const [ny, nm, nd] = now.toISOString().split('T')[0].split('-');
+  const printHtml = buildPrintHtml({
+    title: L.tasks_print_title,
+    period: '',
+    generated: L.report_generated(L.formatDate(ny, nm, nd)),
+    totalEntries: stLabelForPrint(t),
+    body,
+  });
+  openPrintWindow(printHtml);
+}
+
+function stLabelForPrint(t) {
+  if (t.status === TASK_ST.ACTIVE) return L.tasks_status_active;
+  if (t.status === TASK_ST.RETURNED) return L.tasks_status_returned;
+  if (t.status === TASK_ST.COMPLETED && t.completedReason === TASK_REASON.SOURCE) return L.tasks_status_completed_source;
+  return L.tasks_status_completed;
 }
 
 /* ============================================================
@@ -745,6 +1376,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     cancelEntryModal(); closeCatModal(); closeViewModal();
     cancelIssueModal(); cancelResolveIssueModal(); closePlanModal(); cancelResolvePlanModal();
+    closeTaskCreateModal(); closeTaskAppendModal(); cancelTaskCompleteModal();
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     if (document.getElementById('entryModal').classList.contains('open')) saveEntry();
@@ -753,6 +1385,9 @@ document.addEventListener('keydown', e => {
     if (document.getElementById('issueResolveModal').classList.contains('open')) saveResolveIssue();
     if (document.getElementById('planModal').classList.contains('open'))  savePlan();
     if (document.getElementById('planResolveModal').classList.contains('open')) saveResolvePlan();
+    if (document.getElementById('taskAppendModal').classList.contains('open')) saveTaskAppendModal();
+    if (document.getElementById('taskCreateModal').classList.contains('open')) saveTaskCreateModal();
+    if (document.getElementById('taskCompleteModal').classList.contains('open')) saveTaskCompleteModal();
   }
 });
 
@@ -773,6 +1408,15 @@ document.getElementById('issueResolveModal')?.addEventListener('click', e => {
 });
 document.getElementById('planResolveModal')?.addEventListener('click', e => {
   if (e.target === document.getElementById('planResolveModal')) cancelResolvePlanModal();
+});
+document.getElementById('taskCreateModal')?.addEventListener('click', e => {
+  if (e.target === document.getElementById('taskCreateModal')) closeTaskCreateModal();
+});
+document.getElementById('taskAppendModal')?.addEventListener('click', e => {
+  if (e.target === document.getElementById('taskAppendModal')) closeTaskAppendModal();
+});
+document.getElementById('taskCompleteModal')?.addEventListener('click', e => {
+  if (e.target === document.getElementById('taskCompleteModal')) cancelTaskCompleteModal();
 });
 
 document.getElementById('btnOpenNewEntry')?.addEventListener('click', () => openEntryModal());
@@ -913,10 +1557,12 @@ async function deleteIssue(id) {
       if (fname) await deletePhotoFile(fname);
     }
   }
+  await deleteTasksForSource('issue', id);
   await dbDeleteIssue(id);
   toast(L.toast_issueDeleted || 'Поломка удалена', 'success');
   updateStats();
   renderIssues();
+  if (currentPage === 'tasks') await renderTasks();
   scheduleSharedDbSave();
 }
 
@@ -934,8 +1580,10 @@ async function onIssueResolvedToggle(id, current) {
     delete next.resolutionPhotos;
     delete next.resolutionEntryId;
     await dbPutIssue(next);
+    await reopenTasksCompletedBySource('issue', id);
     updateStats();
     renderIssues();
+    if (currentPage === 'tasks') await renderTasks();
     scheduleSharedDbSave();
     return;
   }
@@ -984,6 +1632,11 @@ async function saveResolveIssue() {
     closeResolveIssueModal();
     return;
   }
+  if (issue.status === 'resolved' && issue.resolutionEntryId) {
+    toast(L.tasks_err_double_resolve, 'error');
+    closeResolveIssueModal();
+    return;
+  }
 
   const rActions = document.getElementById('rActions').value.trim();
   const parts = [];
@@ -1018,6 +1671,11 @@ async function saveResolveIssue() {
     resolutionPhotos: photos,
     resolutionEntryId: entryId,
     updatedAt: new Date().toISOString(),
+  });
+
+  await markOpenTasksCompletedForSource('issue', issue.id, {
+    journalEntryId: entryId,
+    completedReason: TASK_REASON.SOURCE,
   });
 
   closeResolveIssueModal();
@@ -1060,6 +1718,13 @@ async function renderIssues() {
   if (catF) items = items.filter(i => i.category === catF);
   if (stF)  items = items.filter(i => i.status === stF);
 
+  const tasks = await dbGetAllTasks();
+  const activeIssueTaskIds = new Set(
+    tasks
+      .filter(t => t && t.sourceType === 'issue' && taskIsOpenStatus(t.status))
+      .map(t => t.sourceId)
+  );
+
   const container = document.getElementById('issuesList');
   if (!items.length) {
     container.innerHTML = `<div class="empty-state">
@@ -1076,6 +1741,8 @@ async function renderIssues() {
 
   container.innerHTML = items.map(item => {
     const catLabel = item.category ? `<span class="cat-chip">${esc(item.category)}</span>` : '';
+    const queued = activeIssueTaskIds.has(item.id);
+    const queueChip = queued ? `<span class="cat-chip">${esc(L.tasks_queued_chip)}</span>` : '';
     const toggleLabel = item.status === 'resolved'
       ? (L.status_open || 'Открыть')
       : (L.status_resolved || 'Устранена');
@@ -1135,15 +1802,21 @@ async function renderIssues() {
          </div>`
       : '';
 
+    const toTasksBtn = (item.status !== 'resolved' && !queued)
+      ? `<button class="btn btn-ghost btn-sm" onclick="openTaskCreateFromIssue(${item.id})">${esc(L.tasks_btn_to_tasks)}</button>`
+      : '';
+
     return `<div class="card issue-${item.status}" id="issue-card-${item.id}">
       <div class="card-header">
         <div class="card-meta">
           <span class="card-date">${(([y,m,d]) => L.formatDate(y,m,d))((item.date||'--').split('-'))}</span>
           ${catLabel}
+          ${queueChip}
           <span class="priority-badge priority-${item.priority}">${priorityLabels[item.priority] || item.priority}</span>
           <span class="status-badge status-${item.status}">${statusLabels[item.status] || item.status}</span>
         </div>
         <div class="card-actions">
+          ${toTasksBtn}
           <button class="btn btn-ghost btn-sm" onclick="onIssueResolvedToggle(${item.id},'${item.status}')">${toggleLabel}</button>
           <button class="btn btn-ghost btn-icon" title="Edit" onclick="openIssueModal(${JSON.stringify(item).replace(/"/g,'&quot;')})">✎</button>
           <button class="btn btn-ghost btn-icon danger" title="Delete" onclick="deleteIssue(${item.id})">🗑</button>
@@ -1325,10 +1998,12 @@ async function deletePlan(id) {
     }
     if (ent) await dbDelete('entries', item.completionEntryId);
   }
+  await deleteTasksForSource('plan', id);
   await dbDeletePlan(id);
   toast(L.toast_planDeleted || 'План удалён', 'success');
   updateStats();
   renderPlans();
+  if (currentPage === 'tasks') await renderTasks();
   scheduleSharedDbSave();
 }
 
@@ -1345,8 +2020,10 @@ async function onPlanDoneToggle(id, current) {
     delete next.completionParts;
     delete next.completionPhotos;
     await dbPutPlan(next);
+    await reopenTasksCompletedBySource('plan', id);
     updateStats();
     renderPlans();
+    if (currentPage === 'tasks') await renderTasks();
     scheduleSharedDbSave();
     return;
   }
@@ -1396,6 +2073,11 @@ async function saveResolvePlan() {
     closeResolvePlanModal();
     return;
   }
+  if (plan.status === 'done' && plan.completionEntryId) {
+    toast(L.tasks_err_double_resolve, 'error');
+    closeResolvePlanModal();
+    return;
+  }
 
   const prActions = document.getElementById('prActions').value.trim();
   const parts = [];
@@ -1430,6 +2112,11 @@ async function saveResolvePlan() {
     completionPhotos: photos,
     completionEntryId: entryId,
     updatedAt: new Date().toISOString(),
+  });
+
+  await markOpenTasksCompletedForSource('plan', plan.id, {
+    journalEntryId: entryId,
+    completedReason: TASK_REASON.SOURCE,
   });
 
   closeResolvePlanModal();
@@ -1487,6 +2174,13 @@ async function renderPlans() {
   if (catF) items = items.filter(i => i.category === catF);
   if (stF)  items = items.filter(i => i.status === stF);
 
+  const tasks = await dbGetAllTasks();
+  const activePlanTaskIds = new Set(
+    tasks
+      .filter(t => t && t.sourceType === 'plan' && taskIsOpenStatus(t.status))
+      .map(t => t.sourceId)
+  );
+
   const container = document.getElementById('plansList');
   if (!items.length) {
     container.innerHTML = `<div class="empty-state">
@@ -1503,6 +2197,8 @@ async function renderPlans() {
     const deadline = planRangeEnd(item);
     const overdue = item.status === 'planned' && deadline && deadline < today_;
     const catLabel = item.category ? `<span class="cat-chip">${esc(item.category)}</span>` : '';
+    const queued = activePlanTaskIds.has(item.id);
+    const queueChip = queued ? `<span class="cat-chip">${esc(L.tasks_queued_chip)}</span>` : '';
     const dateStr = formatPlanPeriodHuman(item);
     const dateLabel = item.datePlanned
       ? `<span class="plan-date ${overdue ? 'overdue' : ''}">${esc(dateStr)}${overdue ? ' ⚠' : ''}</span>`
@@ -1555,14 +2251,20 @@ async function renderPlans() {
          </div>`
       : '';
 
+    const toTasksBtn = (!queued && item.status !== 'done')
+      ? `<button class="btn btn-ghost btn-sm" onclick="openTaskCreateFromPlan(${item.id})">${esc(L.tasks_btn_to_tasks)}</button>`
+      : '';
+
     return `<div class="card plan-${item.status}${overdue ? ' plan-overdue' : ''}" id="plan-card-${item.id}">
       <div class="card-header">
         <div class="card-meta">
           ${dateLabel}
           ${catLabel}
+          ${queueChip}
           <span class="status-badge status-${item.status}">${statusLabels[item.status] || item.status}</span>
         </div>
         <div class="card-actions">
+          ${toTasksBtn}
           <button class="btn btn-ghost btn-sm" onclick="onPlanDoneToggle(${item.id},'${item.status}')">${toggleLabel}</button>
           <button class="btn btn-ghost btn-icon" onclick="openPlanModal(${JSON.stringify(item).replace(/"/g,'&quot;')})">✎</button>
           <button class="btn btn-ghost btn-icon danger" onclick="deletePlan(${item.id})">🗑</button>

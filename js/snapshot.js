@@ -17,8 +17,17 @@ const SNAP_REASON = {
 async function createSnapshot(reason = SNAP_REASON.manual, label = '') {
   const entries    = await dbAll('entries');
   const categories = await dbAll('categories');
+  const issues     = await dbAll('issues');
+  const plans      = await dbAll('plans');
+  const tasks      = await dbAll('tasks');
 
-  if (entries.length === 0 && categories.length === 0) return null; // nothing to save
+  if (
+    entries.length === 0 &&
+    categories.length === 0 &&
+    issues.length === 0 &&
+    plans.length === 0 &&
+    tasks.length === 0
+  ) return null; // nothing to save
 
   const snap = {
     createdAt:  new Date().toISOString(),
@@ -26,7 +35,10 @@ async function createSnapshot(reason = SNAP_REASON.manual, label = '') {
     label:      label || '',
     entryCount: entries.length,
     catCount:   categories.length,
-    data: { entries, categories },
+    issueCount: issues.length,
+    planCount:  plans.length,
+    taskCount:  tasks.length,
+    data: { entries, categories, issues, plans, tasks },
   };
 
   const id = await dbAdd('snapshots', snap);
@@ -65,9 +77,18 @@ async function restoreSnapshot(snapshotId) {
 
   await dbClear('entries');
   await dbClear('categories');
+  await dbClear('issues');
+  await dbClear('plans');
+  await dbClear('tasks');
 
   for (const e of snap.data.entries)    await dbAdd('entries',    e);
   for (const c of snap.data.categories) await dbAdd('categories', c);
+  const issues = Array.isArray(snap.data.issues) ? snap.data.issues : [];
+  const plans  = Array.isArray(snap.data.plans)  ? snap.data.plans  : [];
+  const tasks  = Array.isArray(snap.data.tasks)  ? snap.data.tasks  : [];
+  for (const i of issues) await dbAdd('issues', i);
+  for (const p of plans)  await dbAdd('plans',  p);
+  for (const t of tasks) await dbAdd('tasks',  t);
 
   await refresh();
   toast(L.snap_restored, 'success');
@@ -97,6 +118,9 @@ async function downloadSnapshot(id) {
     exportedAt: snap.createdAt,
     entries:    snap.data.entries,
     categories: snap.data.categories,
+    issues:     snap.data.issues || [],
+    plans:      snap.data.plans || [],
+    tasks:      snap.data.tasks || [],
   };
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -133,6 +157,8 @@ async function renderSnapshotList() {
     const dateStr     = formatSnapDate(snap.createdAt);
     const timeStr     = formatSnapTime(snap.createdAt);
     const extraLabel  = snap.label ? ` — ${esc(snap.label)}` : '';
+    const taskCount = typeof snap.taskCount === 'number' ? snap.taskCount : (snap.data?.tasks?.length || 0);
+    const taskLine  = taskCount > 0 ? ` &nbsp;·&nbsp; ${esc(L.snap_tasks(taskCount))}` : '';
 
     return `
       <div class="snap-card" id="snap-${snap.id}">
@@ -145,7 +171,7 @@ async function renderSnapshotList() {
             <span class="snap-reason-badge snap-reason-${snap.reason}">${esc(reasonLabel)}${extraLabel}</span>
           </div>
           <div class="snap-counts">
-            ${esc(L.snap_entries(snap.entryCount))} &nbsp;·&nbsp; ${esc(L.snap_cats(snap.catCount))}
+            ${esc(L.snap_entries(snap.entryCount))} &nbsp;·&nbsp; ${esc(L.snap_cats(snap.catCount))}${taskLine}
           </div>
         </div>
         <div class="snap-card-actions">

@@ -56,6 +56,10 @@
         <span class="icon">📌</span>
         <span data-i18n="nav_plans">Планы</span>
       </button>
+      <button class="nav-item" onclick="showPage('tasks')" id="nav-tasks">
+        <span class="icon">🗂</span>
+        <span data-i18n="nav_tasks">Задачи</span>
+      </button>
       <button class="nav-item" onclick="showPage('archive')" id="nav-archive">
         <span class="icon">🗄</span>
         <span data-i18n="nav_archive">Архив</span>
@@ -275,6 +279,25 @@
         <button class="btn btn-ghost btn-sm" onclick="clearPlanFilters()" data-i18n="btn_resetFilters">✕ Сброс</button>
       </div>
       <div id="plansList"></div>
+    </div>
+
+    <!-- ─────────── TASKS PAGE ─────────── -->
+    <div id="page-tasks" class="hidden">
+      <div class="page-header">
+        <div class="page-title" data-i18n="tasks_title">Задачи</div>
+      </div>
+      <div class="filter-bar">
+        <input type="text" class="form-input" id="taskSearch" oninput="renderTasks()" style="flex:1" data-i18n="tasks_search_placeholder:placeholder">
+        <select class="form-select" id="taskFilterStatus" onchange="renderTasks()" style="min-width:170px">
+          <option value="active" data-i18n="tasks_filter_active">Активные</option>
+          <option value="returned" data-i18n="tasks_filter_returned">Возвращённые</option>
+          <option value="open" data-i18n="tasks_filter_open">Активные + возвращённые</option>
+          <option value="completed" data-i18n="tasks_filter_completed">Завершённые</option>
+          <option value="all" data-i18n="tasks_filter_all">Все</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="clearTaskFilters()" data-i18n="btn_resetFilters">✕ Сброс</button>
+      </div>
+      <div id="tasksList"></div>
     </div>
 
     <!-- ─────────── ARCHIVE PAGE ─────────── -->
@@ -637,6 +660,95 @@
     <div class="modal-footer">
       <button type="button" class="btn btn-ghost" onclick="cancelResolvePlanModal()" data-i18n="btn_cancel">Отмена</button>
       <button type="button" class="btn btn-primary" onclick="saveResolvePlan()" data-i18n="btn_save_plan_resolve">Сохранить в журнал</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="taskCreateModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" data-i18n="tasks_modal_create_title">В очередь задач</div>
+      <button type="button" class="btn btn-ghost btn-icon" onclick="closeTaskCreateModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="tasks_field_source">Источник</span></label>
+          <div class="form-static" id="taskCreateSourceLabel">—</div>
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="tasks_field_assignees">Кому поручено</span> <span class="muted" data-i18n="tasks_field_optional">(необязательно)</span></label>
+          <input type="text" class="form-input" id="taskCreateAssignees" data-i18n="tasks_assignees_placeholder:placeholder">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeTaskCreateModal()" data-i18n="btn_cancel">Отмена</button>
+      <button type="button" class="btn btn-primary" onclick="saveTaskCreateModal()" data-i18n="tasks_btn_enqueue">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="taskAppendModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" data-i18n="tasks_modal_append_title">Дополнение к задаче</div>
+      <button type="button" class="btn btn-ghost btn-icon" onclick="closeTaskAppendModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="tasks_field_append">Текст дополнения</span><span class="required"> *</span></label>
+          <textarea class="form-textarea" id="taskAppendText" rows="5"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeTaskAppendModal()" data-i18n="btn_cancel">Отмена</button>
+      <button type="button" class="btn btn-primary" onclick="saveTaskAppendModal()" data-i18n="btn_save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="taskCompleteModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" data-i18n="tasks_modal_complete_title">Завершение и запись в журнал</div>
+      <button type="button" class="btn btn-ghost btn-icon" onclick="cancelTaskCompleteModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="tasks_field_source">Источник</span></label>
+          <div class="form-static" id="taskCompleteRefLabel">—</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            <span data-i18n="field_date">Дата</span><span class="required"> *</span>
+          </label>
+          <input type="date" class="form-input" id="tcDate">
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_actions">Выполненные действия</span></label>
+          <textarea class="form-textarea" id="tcActions" rows="4"></textarea>
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_parts">Запчасти и материалы</span></label>
+          <div class="parts-list" id="tcPartsList"></div>
+          <button type="button" class="add-part-btn" onclick="addTaskCompletePartRow()">
+            + <span data-i18n="btn_addPart">добавить позицию</span>
+          </button>
+        </div>
+        <div class="form-group full photo-picker-section">
+          <label class="form-label"><span data-i18n="photo_section">Фотографии</span></label>
+          <div class="photo-picker-grid" id="tcPhotoPickerGrid"></div>
+          <div class="photo-counter" id="tcPhotoCounter"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="cancelTaskCompleteModal()" data-i18n="btn_cancel">Отмена</button>
+      <button type="button" class="btn btn-primary" onclick="saveTaskCompleteModal()" data-i18n="btn_save_plan_resolve">Сохранить в журнал</button>
     </div>
   </div>
 </div>
