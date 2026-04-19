@@ -723,6 +723,11 @@ function taskIsOpenStatus(st) {
   return st === TASK_ST.ACTIVE || st === TASK_ST.RETURNED;
 }
 
+/** Только активная задача блокирует повторное «В задачи» на карточке плана/поломки (возвращённая — нет). */
+function taskIsActiveStatus(st) {
+  return st === TASK_ST.ACTIVE;
+}
+
 function taskEscHtml(str) {
   return String(str || '')
     .replace(/&/g, '&amp;')
@@ -734,7 +739,7 @@ function taskEscHtml(str) {
 
 async function dbFindOpenTaskForSource(sourceType, sourceId) {
   const all = await dbGetAllTasks();
-  return all.find(t => t && t.sourceType === sourceType && t.sourceId === sourceId && taskIsOpenStatus(t.status)) || null;
+  return all.find(t => t && t.sourceType === sourceType && t.sourceId === sourceId && taskIsActiveStatus(t.status)) || null;
 }
 
 async function deleteTasksForSource(sourceType, sourceId) {
@@ -815,6 +820,7 @@ function taskSnapshotFromIssue(issue) {
   return {
     title: issue?.desc || '',
     category: issue?.category || '',
+    detail: String(issue?.notes || '').trim(),
   };
 }
 
@@ -822,7 +828,21 @@ function taskSnapshotFromPlan(plan) {
   return {
     title: plan?.desc || '',
     category: plan?.category || '',
+    detail: String(plan?.actions || '').trim(),
   };
+}
+
+function taskSourceDetailLabel(task) {
+  if (!task) return '';
+  return task.sourceType === 'plan' ? L.field_planActions : L.field_issueNotes;
+}
+
+function taskCreateSourceLabelHtml(snap, badgeText) {
+  const header = `${badgeText}: ${snap.title || '—'}${snap.category ? ` · ${snap.category}` : ''}`;
+  const detail = snap.detail || '';
+  return `<div>${esc(header)}</div>${detail
+    ? `<div class="muted" style="white-space:pre-wrap;margin-top:8px;font-size:12px;line-height:1.45">${esc(detail)}</div>`
+    : ''}`;
 }
 
 let taskCreateDraft = null; // { sourceType, sourceId }
@@ -845,8 +865,8 @@ async function openTaskCreateFromIssue(issueId) {
 
   taskCreateDraft = { sourceType: 'issue', sourceId: issueId };
   const snap = taskSnapshotFromIssue(issue);
-  document.getElementById('taskCreateSourceLabel').textContent =
-    `${L.tasks_badge_issue}: ${snap.title || '—'}` + (snap.category ? ` · ${snap.category}` : '');
+  const el = document.getElementById('taskCreateSourceLabel');
+  if (el) el.innerHTML = taskCreateSourceLabelHtml(snap, L.tasks_badge_issue);
   document.getElementById('taskCreateAssignees').value = '';
   document.getElementById('taskCreateModal')?.classList.add('open');
   applyI18n();
@@ -864,8 +884,8 @@ async function openTaskCreateFromPlan(planId) {
 
   taskCreateDraft = { sourceType: 'plan', sourceId: planId };
   const snap = taskSnapshotFromPlan(plan);
-  document.getElementById('taskCreateSourceLabel').textContent =
-    `${L.tasks_badge_plan}: ${snap.title || '—'}` + (snap.category ? ` · ${snap.category}` : '');
+  const el = document.getElementById('taskCreateSourceLabel');
+  if (el) el.innerHTML = taskCreateSourceLabelHtml(snap, L.tasks_badge_plan);
   document.getElementById('taskCreateAssignees').value = '';
   document.getElementById('taskCreateModal')?.classList.add('open');
   applyI18n();
@@ -880,7 +900,7 @@ async function saveTaskCreateModal() {
   const existing = await dbFindOpenTaskForSource(sourceType, sourceId);
   if (existing) { toast(L.tasks_err_active_exists, 'error'); closeTaskCreateModal(); return; }
 
-  let snap = { title: '', category: '' };
+  let snap = { title: '', category: '', detail: '' };
   if (sourceType === 'issue') {
     const issues = await dbGetAllIssues();
     const issue = issues.find(i => i.id === sourceId);
@@ -903,6 +923,7 @@ async function saveTaskCreateModal() {
     assigneesText,
     sourceTitle: snap.title,
     sourceCategory: snap.category,
+    sourceDetail: snap.detail || '',
     appendLog: [],
     createdAt: now,
     updatedAt: now,
@@ -996,10 +1017,13 @@ async function openTaskCompleteModal(taskId) {
 
   completingTaskId = taskId;
   const badge = t.sourceType === 'plan' ? L.tasks_badge_plan : L.tasks_badge_issue;
-  const title = t.sourceTitle || '';
-  const cat = t.sourceCategory || '';
-  document.getElementById('taskCompleteRefLabel').textContent =
-    `${badge}: ${title || '—'}` + (cat ? ` · ${cat}` : '');
+  const snap = {
+    title: t.sourceTitle || '',
+    category: t.sourceCategory || '',
+    detail: String(t.sourceDetail || '').trim(),
+  };
+  const ref = document.getElementById('taskCompleteRefLabel');
+  if (ref) ref.innerHTML = taskCreateSourceLabelHtml(snap, badge);
 
   document.getElementById('tcDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('tcActions').value = '';
@@ -1194,6 +1218,7 @@ async function renderTasks() {
     const hay = [
       t.sourceTitle,
       t.sourceCategory,
+      t.sourceDetail,
       t.assigneesText,
       ...(Array.isArray(t.appendLog) ? t.appendLog.map(x => x && x.text) : []),
     ].map(x => String(x || '').toLowerCase()).join(' | ');
@@ -1231,6 +1256,13 @@ async function renderTasks() {
 
   container.innerHTML = items.map(t => {
     const title = highlight(esc(t.sourceTitle || '—'), search);
+    const detailRaw = String(t.sourceDetail || '').trim();
+    const detailHtml = detailRaw
+      ? `<div class="issue-resolution-block" style="margin-top:6px">
+           <div class="issue-resolution-label">${esc(taskSourceDetailLabel(t))}</div>
+           <div class="card-actions-text">${highlight(esc(detailRaw), search)}</div>
+         </div>`
+      : '';
     const cat = t.sourceCategory ? `<span class="cat-chip">${esc(t.sourceCategory)}</span>` : '';
     const assignees = t.assigneesText
       ? `<div class="card-notes">${esc(L.tasks_assigned_prefix)} ${highlight(esc(t.assigneesText), search)}</div>`
@@ -1273,6 +1305,7 @@ async function renderTasks() {
         ${actions}
       </div>
       <div class="card-title">${title}</div>
+      ${detailHtml}
       ${assignees}
       ${logHtml}
     </div>`;
@@ -1301,6 +1334,14 @@ async function printTaskSheet(taskId) {
     ? `<div class="rp-line"><b>${taskEscHtml(L.tasks_assigned_prefix)}</b> ${taskEscHtml(t.assigneesText)}</div>`
     : '';
 
+  const detailRaw = String(t.sourceDetail || '').trim();
+  const detailBlock = detailRaw
+    ? `<div class="rp-block">
+         <div class="rp-h3">${taskEscHtml(taskSourceDetailLabel(t))}</div>
+         <div class="rp-line" style="white-space:pre-wrap">${taskEscHtml(detailRaw)}</div>
+       </div>`
+    : '';
+
   const body = `
     <div class="rp-title">${taskEscHtml(L.tasks_print_title)}</div>
     <div class="rp-meta">${taskEscHtml(badge)} · ${taskEscHtml(t.sourceCategory || L.report_no_category)}</div>
@@ -1309,6 +1350,7 @@ async function printTaskSheet(taskId) {
       <div class="rp-line"><b>${taskEscHtml(t.sourceTitle || '—')}</b></div>
       ${assignees}
     </div>
+    ${detailBlock}
     ${logsHtml}
   `;
 
@@ -1721,7 +1763,7 @@ async function renderIssues() {
   const tasks = await dbGetAllTasks();
   const activeIssueTaskIds = new Set(
     tasks
-      .filter(t => t && t.sourceType === 'issue' && taskIsOpenStatus(t.status))
+      .filter(t => t && t.sourceType === 'issue' && taskIsActiveStatus(t.status))
       .map(t => t.sourceId)
   );
 
@@ -2177,7 +2219,7 @@ async function renderPlans() {
   const tasks = await dbGetAllTasks();
   const activePlanTaskIds = new Set(
     tasks
-      .filter(t => t && t.sourceType === 'plan' && taskIsOpenStatus(t.status))
+      .filter(t => t && t.sourceType === 'plan' && taskIsActiveStatus(t.status))
       .map(t => t.sourceId)
   );
 
