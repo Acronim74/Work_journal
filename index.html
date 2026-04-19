@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: photo:;">
+  <title>Work Journal</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===================== HEADER ===================== -->
+  <header class="header">
+    <div class="header-logo" id="headerLogo">РАБ<span>.</span>ЖУРНАЛ</div>
+    <div class="header-sep"></div>
+    <div class="header-date" id="headerDate"></div>
+    <div class="header-actions">
+      <button type="button" id="themeToggleBtn"
+              class="btn btn-ghost btn-icon"
+              onclick="toggleTheme()"
+              data-i18n="theme_toggle:title"
+              title="Переключить тему"
+              style="font-size:16px;">☀️</button>
+      <div class="header-lang" id="headerLangPicker"></div>
+      <div class="header-sep"></div>
+      <button class="btn btn-ghost btn-sm" onclick="exportDB()" data-i18n="btn_export">↑ Экспорт</button>
+      <button class="btn btn-ghost btn-sm" onclick="importDB()" data-i18n="btn_import">↓ Импорт</button>
+      <input type="file" id="importFile" accept=".json" class="hidden" onchange="importDB(event)">
+      <a onclick="openHelp()" class="btn btn-ghost btn-sm" style="cursor:pointer" data-i18n="btn_help">? Помощь</a>
+    </div>
+  </header>
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">Navigation</div>
+      <button class="nav-item active" onclick="showPage('journal')" id="nav-journal">
+        <span class="icon">📋</span>
+        <span data-i18n="nav_journal">Журнал</span>
+      </button>
+      <button class="nav-item" onclick="showPage('categories')" id="nav-categories">
+        <span class="icon">🏷</span>
+        <span data-i18n="nav_categories">Категории</span>
+      </button>
+      <button class="nav-item" onclick="showPage('reports')" id="nav-reports">
+        <span class="icon">📊</span>
+        <span data-i18n="nav_reports">Отчёты</span>
+      </button>
+      <button class="nav-item" onclick="showPage('issues')" id="nav-issues">
+        <span class="icon">⚠</span>
+        <span data-i18n="nav_issues">Поломки</span>
+      </button>
+      <button class="nav-item" onclick="showPage('plans')" id="nav-plans">
+        <span class="icon">📌</span>
+        <span data-i18n="nav_plans">Планы</span>
+      </button>
+      <button class="nav-item" onclick="showPage('archive')" id="nav-archive">
+        <span class="icon">🗄</span>
+        <span data-i18n="nav_archive">Архив</span>
+      </button>
+      <button class="nav-item" onclick="showPage('settings')" id="nav-settings">
+        <span class="icon">⚙</span>
+        <span data-i18n="nav_settings">Настройки</span>
+      </button>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-stats">
+      <div class="nav-label" data-i18n="stat_total">Статистика</div>
+      <div class="stat-chip">
+        <div class="stat-chip-label" data-i18n="stat_total">Записей всего</div>
+        <div class="stat-chip-value" id="statTotal">0</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-chip-label" data-i18n="stat_month">За этот месяц</div>
+        <div class="stat-chip-value" id="statMonth">0</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-chip-label" data-i18n="stat_cats">Категорий</div>
+        <div class="stat-chip-value" id="statCats">0</div>
+      </div>
+      <div class="stat-chip stat-chip-issues">
+        <div class="stat-chip-label" data-i18n="stat_issues_open">Открытых поломок</div>
+        <div class="stat-chip-value" id="statIssues">0</div>
+      </div>
+      <div class="stat-chip stat-chip-plans">
+        <div class="stat-chip-label" data-i18n="stat_plans_pending">Активных планов</div>
+        <div class="stat-chip-value" id="statPlans">0</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <main class="main">
+
+    <!-- ─────────── JOURNAL PAGE ─────────── -->
+    <div id="page-journal">
+      <div class="page-header">
+        <div class="page-title" data-i18n="nav_journal">Журнал работ</div>
+        <button type="button" class="btn btn-primary" id="btnOpenNewEntry" data-i18n="btn_newEntry">+ Новая запись</button>
+      </div>
+      <div class="filter-bar">
+        <input type="text"  class="form-input" id="searchInput"    oninput="renderJournal()">
+        <select             class="form-select" id="filterCat"      onchange="renderJournal()" style="min-width:150px"></select>
+        <input type="date"  class="form-input"  id="filterDateFrom" onchange="renderJournal()" style="width:145px">
+        <input type="date"  class="form-input"  id="filterDateTo"   onchange="renderJournal()" style="width:145px">
+        <button class="btn btn-ghost btn-sm" onclick="clearFilters()" data-i18n="btn_resetFilters">✕ Сброс</button>
+      </div>
+      <div id="journalList"></div>
+    </div>
+
+    <!-- ─────────── CATEGORIES PAGE ─────────── -->
+    <div id="page-categories" class="hidden">
+      <div class="page-header">
+        <div class="page-title" data-i18n="nav_categories">Категории</div>
+        <button type="button" class="btn btn-primary" id="btnOpenNewCat" data-i18n="btn_add">+ Добавить</button>
+      </div>
+      <div class="cat-grid" id="catGrid"></div>
+    </div>
+
+    <!-- ─────────── REPORTS PAGE ─────────── -->
+    <div id="page-reports" class="hidden">
+      <div class="page-header">
+        <div class="page-title" data-i18n="report_title">Отчёты</div>
+      </div>
+
+      <div class="report-layout">
+
+        <!-- LEFT: Controls -->
+        <div class="report-controls">
+          <div class="report-type-tabs" role="tablist">
+            <button type="button" class="report-type-tab active" data-report-type="journal" onclick="setReportType('journal')" data-i18n="report_tab_journal">Журнал</button>
+            <button type="button" class="report-type-tab" data-report-type="issues" onclick="setReportType('issues')" data-i18n="report_tab_issues">Поломки</button>
+            <button type="button" class="report-type-tab" data-report-type="plans" onclick="setReportType('plans')" data-i18n="report_tab_plans">Планы</button>
+          </div>
+
+          <div class="report-controls-title" data-i18n="report_period_label">Период</div>
+
+          <div class="preset-grid">
+            <button class="preset-btn" data-preset="week"    onclick="applyPreset('week')"    data-i18n="report_period_week">Эта неделя</button>
+            <button class="preset-btn" data-preset="month"   onclick="applyPreset('month')"   data-i18n="report_period_month">Этот месяц</button>
+            <button class="preset-btn" data-preset="quarter" onclick="applyPreset('quarter')" data-i18n="report_period_quarter">Этот квартал</button>
+            <button class="preset-btn" data-preset="year"    onclick="applyPreset('year')"    data-i18n="report_period_year">Этот год</button>
+          </div>
+
+          <div class="report-divider"></div>
+
+          <div class="form-group">
+            <label class="form-label" data-i18n="report_date_from">Дата начала</label>
+            <input type="date" class="form-input" id="rDateFrom" oninput="clearPresetActive(); renderReportPreview()">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="report_date_to">Дата окончания</label>
+            <input type="date" class="form-input" id="rDateTo" oninput="clearPresetActive(); renderReportPreview()">
+          </div>
+
+          <div class="report-divider"></div>
+
+          <div class="form-group">
+            <label class="form-label" data-i18n="report_cat_filter">Категории</label>
+            <select class="form-select" id="rCatFilter" onchange="renderReportPreview()"></select>
+          </div>
+
+          <div class="report-action-row">
+            <button class="btn btn-primary" onclick="printReport()" id="reportPrintBtn" disabled data-i18n="btn_print">
+              🖨 Печать
+            </button>
+          </div>
+        </div>
+
+        <!-- RIGHT: Preview -->
+        <div class="report-preview-panel">
+          <div class="report-preview-header">
+            <span class="report-preview-label" data-i18n="report_preview_title">Предварительный просмотр</span>
+          </div>
+          <div class="report-preview-body">
+            <div id="reportPreview">
+              <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <div class="empty-state-title" data-i18n="report_period_label">Выберите период</div>
+                <div class="empty-state-text" data-i18n="report_period_custom">и нажмите «Сформировать»</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─────────── SETTINGS PAGE ─────────── -->
+    <div id="page-settings" class="hidden">
+      <div class="page-header">
+        <div class="page-title" data-i18n="nav_settings">Настройки</div>
+      </div>
+      <div class="card">
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-label" data-i18n="settings_lang_label">Язык интерфейса</div>
+            <div class="settings-desc"  data-i18n="settings_lang_desc">Язык меню и подписей</div>
+          </div>
+          <div class="lang-picker" id="langPicker"></div>
+        </div>
+        <div class="settings-row hidden" id="electronDbInfoRow">
+          <div class="settings-row-info">
+            <div class="settings-desc" data-i18n="settings_electron_db_desc">Данные сохраняются автоматически в work-journal-db.json рядом с программой.</div>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-label" data-i18n="settings_export_label">Экспорт базы данных</div>
+            <div class="settings-desc"  data-i18n="settings_export_desc">Сохранить все данные в JSON-файл</div>
+          </div>
+          <button class="btn btn-ghost" onclick="exportDB()" data-i18n="btn_exportJson">↑ Скачать .json</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-label" data-i18n="settings_import_label">Импорт базы данных</div>
+            <div class="settings-desc"  data-i18n="settings_import_desc">Загрузить данные из файла</div>
+          </div>
+          <button class="btn btn-ghost" onclick="importDB()" data-i18n="btn_importJson">↓ Загрузить .json</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-label" data-i18n="settings_clear_label">Очистить все данные</div>
+            <div class="settings-desc"  data-i18n="settings_clear_desc">Удалить все записи (необратимо!)</div>
+          </div>
+          <button class="btn btn-danger" onclick="clearAllData()" data-i18n="btn_clearAll">🗑 Очистить</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div style="color:var(--text-muted); font-size:11px; line-height:2">
+          <div style="color:var(--text); margin-bottom:6px; font-family:var(--font-display); font-size:11px"
+               data-i18n="settings_about_title">О приложении</div>
+          <span id="aboutText"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────── ISSUES PAGE ─────────── -->
+    <div id="page-issues" class="hidden">
+      <div class="page-header">
+        <div class="page-title" data-i18n="issues_title">Журнал поломок</div>
+        <button class="btn btn-primary" onclick="openIssueModal()" data-i18n="btn_newIssue">+ Новая поломка</button>
+      </div>
+      <div class="filter-bar">
+        <input type="text"  class="form-input" id="issueSearch"      oninput="renderIssues()" style="flex:1">
+        <select             class="form-select" id="issueFilterCat"   onchange="renderIssues()" style="min-width:140px"></select>
+        <select             class="form-select" id="issueFilterStatus" onchange="renderIssues()" style="min-width:130px">
+          <option value=""         data-i18n="filter_status_all">Все статусы</option>
+          <option value="open"     data-i18n="status_open">Открыта</option>
+          <option value="inprogress" data-i18n="status_inprogress">В работе</option>
+          <option value="resolved" data-i18n="status_resolved">Устранена</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="clearIssueFilters()" data-i18n="btn_resetFilters">✕ Сброс</button>
+      </div>
+      <div id="issuesList"></div>
+    </div>
+
+    <!-- ─────────── PLANS PAGE ─────────── -->
+    <div id="page-plans" class="hidden">
+      <div class="page-header">
+        <div class="page-title" data-i18n="plans_title">Планирование</div>
+        <button class="btn btn-primary" onclick="openPlanModal()" data-i18n="btn_newPlan">+ Новый план</button>
+      </div>
+      <div class="filter-bar">
+        <input type="text"  class="form-input" id="planSearch"       oninput="renderPlans()" style="flex:1">
+        <select             class="form-select" id="planFilterCat"    onchange="renderPlans()" style="min-width:140px"></select>
+        <select             class="form-select" id="planFilterStatus" onchange="renderPlans()" style="min-width:130px">
+          <option value=""        data-i18n="filter_status_all">Все статусы</option>
+          <option value="planned" data-i18n="status_planned">Запланировано</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="clearPlanFilters()" data-i18n="btn_resetFilters">✕ Сброс</button>
+      </div>
+      <div id="plansList"></div>
+    </div>
+
+    <!-- ─────────── ARCHIVE PAGE ─────────── -->
+    <div id="page-archive" class="hidden">
+      <div class="archive-header-row">
+        <div>
+          <div class="page-title" data-i18n="archive_title">Архив снимков</div>
+          <div class="archive-desc" data-i18n="archive_desc">Автоматические и ручные снимки</div>
+        </div>
+        <button class="btn btn-primary" onclick="manualSnapshot()" data-i18n="btn_manualSnap">
+          📷 Создать снимок
+        </button>
+      </div>
+      <div id="snapshotList"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ===================== MODAL: ENTRY ===================== -->
+<div class="modal-overlay" id="entryModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle" data-i18n="modal_newEntry">Новая запись</div>
+      <button class="btn btn-ghost btn-icon" onclick="closeEntryModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">
+            <span data-i18n="field_date">Дата</span><span class="required"> *</span>
+          </label>
+          <input type="date" class="form-input" id="fDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span data-i18n="field_category">Категория</span></label>
+          <select class="form-select" id="fCat"></select>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">
+            <span data-i18n="field_description">Описание работы</span><span class="required"> *</span>
+          </label>
+          <input type="text" class="form-input" id="fDesc">
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_actions">Выполненные действия</span></label>
+          <textarea class="form-textarea" id="fActions"></textarea>
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_parts">Запчасти и материалы</span></label>
+          <div class="parts-list" id="partsList"></div>
+          <button class="add-part-btn" onclick="addPartRow()">
+            + <span data-i18n="btn_addPart">добавить позицию</span>
+          </button>
+        </div>
+
+        <div class="form-group full photo-picker-section">
+          <label class="form-label"><span data-i18n="photo_section">Фотографии</span></label>
+          <div class="photo-picker-grid" id="photoPickerGrid"></div>
+          <div class="photo-counter" id="photoCounter"></div>
+        </div>
+
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost"   onclick="cancelEntryModal()" data-i18n="btn_cancel">Отмена</button>
+      <button class="btn btn-primary" onclick="saveEntry()"        data-i18n="btn_save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: CATEGORY ===================== -->
+<div class="modal-overlay" id="catModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title" data-i18n="modal_newCat">Новая категория</div>
+      <button class="btn btn-ghost btn-icon" onclick="closeCatModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">
+          <span data-i18n="field_catName">Название</span><span class="required"> *</span>
+        </label>
+        <input type="text" class="form-input" id="fCatName">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost"   onclick="closeCatModal()" data-i18n="btn_cancel">Отмена</button>
+      <button class="btn btn-primary" onclick="saveCat()"       data-i18n="btn_save">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TOASTS ===================== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ===================== MODAL: VIEW ENTRY ===================== -->
+<div class="modal-overlay" id="viewModal">
+  <div class="modal view-modal">
+    <div class="modal-header">
+      <div class="modal-title" data-i18n="view_modal_title">Просмотр записи</div>
+      <button class="btn btn-ghost btn-icon" onclick="closeViewModal()">✕</button>
+    </div>
+    <div class="view-header">
+      <div class="view-meta-row">
+        <span class="badge badge-date view-date"></span>
+        <span class="badge badge-cat view-cat"></span>
+      </div>
+    </div>
+    <div class="view-issue-link-block hidden">
+      <div class="view-issue-dates muted"></div>
+      <button type="button" class="btn btn-ghost btn-sm view-issue-more-btn"></button>
+    </div>
+    <div class="view-plan-link-block hidden">
+      <div class="view-plan-dates muted"></div>
+      <button type="button" class="btn btn-ghost btn-sm view-plan-more-btn"></button>
+    </div>
+    <div class="view-title"></div>
+    <div class="view-body">
+
+      <div class="view-actions-block">
+        <div class="view-section-label" data-i18n="view_actions_label">Выполненные действия</div>
+        <div class="view-section-text view-actions-text"></div>
+      </div>
+
+      <div class="view-parts-block">
+        <div class="view-section-label" data-i18n="view_parts_label">Запчасти и материалы</div>
+        <div class="parts-chips view-parts-list"></div>
+      </div>
+
+      <div class="view-photos-block">
+        <div class="view-section-label" data-i18n="view_photos_label">Фотографии</div>
+        <div class="view-photo-grid"></div>
+      </div>
+
+    </div>
+    <div class="view-modal-footer">
+      <button class="btn btn-ghost" onclick="closeViewModal()" data-i18n="btn_cancel">Закрыть</button>
+      <button class="btn btn-primary view-edit-btn" data-i18n="view_edit">Редактировать</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== LIGHTBOX ===================== -->
+<div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
+  <button class="lb-close" onclick="closeLightbox()">✕</button>
+  <button class="lb-arrow lb-arrow-prev" onclick="lightboxPrev()">‹</button>
+  <div class="lb-img-wrap">
+    <img id="lightboxImg" src="" alt="">
+  </div>
+  <button class="lb-arrow lb-arrow-next" onclick="lightboxNext()">›</button>
+  <div class="lb-counter" id="lightboxCounter"></div>
+</div>
+
+<!-- ===================== MODAL: ISSUE ===================== -->
+<div class="modal-overlay" id="issueModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title" id="issueModalTitle" data-i18n="modal_newIssue">Новая поломка</div>
+      <button class="btn btn-ghost btn-icon" onclick="cancelIssueModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label"><span data-i18n="field_dateFound">Дата обнаружения</span><span class="required"> *</span></label>
+          <input type="date" class="form-input" id="iDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span data-i18n="field_category">Категория</span></label>
+          <select class="form-select" id="iCat"></select>
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_issueDesc">Описание поломки</span><span class="required"> *</span></label>
+          <input type="text" class="form-input" id="iDesc">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span data-i18n="field_priority">Приоритет</span></label>
+          <select class="form-select" id="iPriority">
+            <option value="low"      data-i18n="priority_low">Низкий</option>
+            <option value="medium"   data-i18n="priority_medium" selected>Средний</option>
+            <option value="high"     data-i18n="priority_high">Высокий</option>
+            <option value="critical" data-i18n="priority_critical">Критический</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span data-i18n="field_status">Статус</span></label>
+          <select class="form-select" id="iStatus">
+            <option value="open"       data-i18n="status_open">Открыта</option>
+            <option value="inprogress" data-i18n="status_inprogress">В работе</option>
+            <option value="resolved"   data-i18n="status_resolved">Устранена</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_issueNotes">Заметки / подробности</span></label>
+          <textarea class="form-textarea" id="iNotes" rows="3"></textarea>
+        </div>
+        <div class="form-group full photo-picker-section">
+          <label class="form-label"><span data-i18n="photo_section">Фотографии</span></label>
+          <div class="photo-picker-grid" id="issuePhotoPickerGrid"></div>
+          <div class="photo-counter" id="issuePhotoCounter"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost"   onclick="cancelIssueModal()" data-i18n="btn_cancel">Отмена</button>
+      <button class="btn btn-primary" onclick="saveIssue()"        data-i18n="btn_save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: RESOLVE ISSUE (устранение → журнал работ) ===================== -->
+<div class="modal-overlay" id="issueResolveModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" data-i18n="modal_resolveIssue">Устранение поломки</div>
+      <button class="btn btn-ghost btn-icon" onclick="cancelResolveIssueModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_issueDesc">Поломка</span></label>
+          <div class="form-static" id="resolveIssueRefDesc"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            <span data-i18n="field_resolveDate">Дата устранения (в журнал работ)</span><span class="required"> *</span>
+          </label>
+          <input type="date" class="form-input" id="rDate">
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_actions">Выполненные действия</span></label>
+          <textarea class="form-textarea" id="rActions" rows="4"></textarea>
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_parts">Запчасти и материалы</span></label>
+          <div class="parts-list" id="resolvePartsList"></div>
+          <button type="button" class="add-part-btn" onclick="addResolvePartRow()">
+            + <span data-i18n="btn_addPart">добавить позицию</span>
+          </button>
+        </div>
+        <div class="form-group full photo-picker-section">
+          <label class="form-label"><span data-i18n="photo_section">Фотографии</span></label>
+          <div class="photo-picker-grid" id="resolvePhotoPickerGrid"></div>
+          <div class="photo-counter" id="resolvePhotoCounter"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="cancelResolveIssueModal()" data-i18n="btn_cancel">Отмена</button>
+      <button type="button" class="btn btn-primary" onclick="saveResolveIssue()" data-i18n="btn_save_resolve">Сохранить в журнал</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: PLAN ===================== -->
+<div class="modal-overlay" id="planModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="planModalTitle" data-i18n="modal_newPlan">Новый план</div>
+      <button class="btn btn-ghost btn-icon" onclick="closePlanModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label" data-i18n="field_planPeriodType">Срок плана</label>
+          <div class="plan-mode-row">
+            <label class="plan-mode-option">
+              <input type="radio" name="pMode" id="pModeSingle" value="single" checked onchange="syncPlanDateMode(); applyI18n();">
+              <span data-i18n="plan_mode_single">Один день</span>
+            </label>
+            <label class="plan-mode-option">
+              <input type="radio" name="pMode" id="pModeRange" value="range" onchange="syncPlanDateMode(); applyI18n();">
+              <span data-i18n="plan_mode_range">Период</span>
+            </label>
+          </div>
+        </div>
+        <div class="form-group" id="pDateGroup">
+          <label class="form-label" id="pDateLabel" data-i18n="field_datePlanned">Плановая дата</label>
+          <input type="date" class="form-input" id="pDate">
+        </div>
+        <div class="form-group hidden" id="pDateEndGroup">
+          <label class="form-label" data-i18n="field_datePlannedEnd">По дату</label>
+          <input type="date" class="form-input" id="pDateEnd">
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_category">Категория</span></label>
+          <select class="form-select" id="pCat"></select>
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_planDesc">Описание задачи</span><span class="required"> *</span></label>
+          <input type="text" class="form-input" id="pDesc">
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_planActions">Планируемые действия</span></label>
+          <textarea class="form-textarea" id="pActions"></textarea>
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_parts">Запчасти и материалы</span></label>
+          <div class="parts-list" id="planPartsList"></div>
+          <button class="add-part-btn" onclick="addPlanPartRow()">
+            + <span data-i18n="btn_addPart">добавить позицию</span>
+          </button>
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_status">Статус</span></label>
+          <select class="form-select" id="pStatus" style="max-width:200px">
+            <option value="planned" data-i18n="status_planned">Запланировано</option>
+            <option value="done"    data-i18n="status_done">Выполнено</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost"   onclick="closePlanModal()" data-i18n="btn_cancel">Отмена</button>
+      <button class="btn btn-primary" onclick="savePlan()"       data-i18n="btn_save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="planResolveModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" data-i18n="modal_resolvePlan">Завершение плана</div>
+      <button type="button" class="btn btn-ghost btn-icon" onclick="cancelResolvePlanModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_planDesc">Задача по плану</span></label>
+          <div class="form-static" id="planResolveRefDesc"></div>
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_planRefPeriod">Срок в плане</span></label>
+          <div class="form-static muted" id="planResolveRefPeriod"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            <span data-i18n="field_plan_done_date">Дата выполнения (в журнал работ)</span><span class="required"> *</span>
+          </label>
+          <input type="date" class="form-input" id="prDate">
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_actions">Выполненные действия</span></label>
+          <textarea class="form-textarea" id="prActions" rows="4"></textarea>
+        </div>
+        <div class="form-group full">
+          <label class="form-label"><span data-i18n="field_parts">Запчасти и материалы</span></label>
+          <div class="parts-list" id="planResolvePartsList"></div>
+          <button type="button" class="add-part-btn" onclick="addPlanResolvePartRow()">
+            + <span data-i18n="btn_addPart">добавить позицию</span>
+          </button>
+        </div>
+        <div class="form-group full photo-picker-section">
+          <label class="form-label"><span data-i18n="photo_section">Фотографии</span></label>
+          <div class="photo-picker-grid" id="planResolvePhotoPickerGrid"></div>
+          <div class="photo-counter" id="planResolvePhotoCounter"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="cancelResolvePlanModal()" data-i18n="btn_cancel">Отмена</button>
+      <button type="button" class="btn btn-primary" onclick="saveResolvePlan()" data-i18n="btn_save_plan_resolve">Сохранить в журнал</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCRIPTS (в конце, чтобы все модалки уже в DOM) ===================== -->
+<script src="i18n/ru.js"></script>
+<script src="i18n/en.js"></script>
+<script src="i18n/pl.js"></script>
+<script src="js/db.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/report.js"></script>
+<script src="js/snapshot.js"></script>
+<script src="js/photos.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

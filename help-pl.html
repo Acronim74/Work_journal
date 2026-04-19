@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pomoc — Dziennik Pracy</title>
+  <style>
+    @font-face {
+      font-family: 'AppMono';
+      src: url('fonts/LiberationMono-Regular.ttf') format('truetype');
+      font-weight: 400; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'AppMono';
+      src: url('fonts/LiberationMono-Bold.ttf') format('truetype');
+      font-weight: 700; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'AppDisplay';
+      src: url('fonts/LiberationSans-Regular.ttf') format('truetype');
+      font-weight: 400; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'AppDisplay';
+      src: url('fonts/LiberationSans-Bold.ttf') format('truetype');
+      font-weight: 700; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'AppDisplay';
+      src: url('fonts/LiberationSans-Italic.ttf') format('truetype');
+      font-weight: 400; font-style: italic; font-display: block;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e0f11; --surface: #16181c; --surface2: #1e2128; --border: #2a2d35;
+      --accent: #f0c040; --accent2: #e07020; --text: #d8dae0; --muted: #6b7080;
+      --dim: #3a3f4a; --success: #40c080; --danger: #e04040;
+      --mono: 'AppMono','Liberation Mono',monospace;
+      --display: 'AppDisplay','Liberation Sans',Arial,sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--display); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+    .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+
+    .sidebar { background: var(--surface); border-right: 1px solid var(--border); position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+    .sidebar-logo { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); }
+    .logo-text { font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--accent); letter-spacing: 0.05em; }
+    .logo-text span { color: var(--accent2); }
+    .logo-sub { font-size: 11px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+    .toc { padding: 12px 0; flex: 1; }
+    .toc-section-label { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); padding: 10px 16px 4px; font-family: var(--mono); }
+    .toc-link { display: flex; align-items: center; gap: 8px; padding: 7px 16px; color: var(--muted); text-decoration: none; font-size: 12px; transition: all 0.15s; border-left: 2px solid transparent; }
+    .toc-link:hover { background: var(--surface2); color: var(--text); border-left-color: var(--dim); }
+    .toc-link.active { background: rgba(240,192,64,0.08); color: var(--accent); border-left-color: var(--accent); }
+    .toc-icon { font-size: 14px; flex-shrink: 0; }
+    .sidebar-back { padding: 14px 16px; border-top: 1px solid var(--border); }
+    .back-btn { display: flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; font-size: 12px; font-family: var(--mono); padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border); transition: all 0.15s; }
+    .back-btn:hover { background: var(--surface2); color: var(--text); }
+
+    .content { padding: 40px 48px 80px; max-width: 860px; }
+    .hero { margin-bottom: 48px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+    .hero-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+    .hero-title { font-size: 32px; font-weight: 700; color: var(--text); line-height: 1.2; margin-bottom: 12px; }
+    .hero-title span { color: var(--accent); }
+    .hero-desc { font-size: 15px; color: var(--muted); max-width: 560px; line-height: 1.7; }
+    .version-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 16px; }
+    .version-badge .dot { color: var(--success); }
+
+    .section { margin-bottom: 56px; scroll-margin-top: 24px; }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section-icon { width: 36px; height: 36px; background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .section-title { font-size: 20px; font-weight: 700; color: var(--text); }
+    .section-id { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-left: auto; }
+
+    .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; transition: border-color 0.15s; }
+    .feature-card:hover { border-color: #3a3f4a; }
+    .feature-card-icon { font-size: 22px; margin-bottom: 8px; }
+    .feature-card-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .feature-card-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+    .steps { display: flex; flex-direction: column; gap: 12px; }
+    .step { display: flex; gap: 14px; align-items: flex-start; }
+    .step-num { flex-shrink: 0; width: 26px; height: 26px; background: var(--accent); color: #0e0f11; border-radius: 50%; font-weight: 700; font-size: 12px; font-family: var(--mono); display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+    .step-body { flex: 1; }
+    .step-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+    .step-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+    .info-block { border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; display: flex; gap: 12px; font-size: 13px; line-height: 1.6; }
+    .info-block-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .info-tip { background: rgba(240,192,64,0.08); border: 1px solid rgba(240,192,64,0.2); color: var(--text); }
+    .info-note { background: rgba(64,192,128,0.08); border: 1px solid rgba(64,192,128,0.2); color: var(--text); }
+    .info-warn { background: rgba(224,64,64,0.08); border: 1px solid rgba(224,64,64,0.2); color: var(--text); }
+
+    .shortcut-table, .field-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+    .shortcut-table th, .field-table th { text-align: left; padding: 8px 12px; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); font-family: var(--mono); border-bottom: 2px solid var(--border); background: var(--surface2); }
+    .shortcut-table td, .field-table td { padding: 10px 12px; border-bottom: 1px solid rgba(42,45,53,0.6); vertical-align: top; line-height: 1.5; color: var(--muted); }
+    .shortcut-table tr:last-child td, .field-table tr:last-child td { border-bottom: none; }
+    .shortcut-table tr:hover td, .field-table tr:hover td { background: rgba(30,33,40,0.5); }
+    .field-name { font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 700; white-space: nowrap; }
+    .field-required { color: var(--danger); font-size: 10px; margin-left: 4px; }
+
+    kbd { display: inline-flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 2px 7px; font-family: var(--mono); font-size: 11px; color: var(--text); white-space: nowrap; }
+    code { font-family: var(--mono); font-size: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent); }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+    .badge-auto { background: rgba(224,64,64,0.12); color: #ff8080; border: 1px solid rgba(224,64,64,0.25); }
+    .badge-manual { background: rgba(64,192,128,0.12); color: var(--success); border: 1px solid rgba(64,192,128,0.25); }
+    .badge-import { background: rgba(240,192,64,0.12); color: var(--accent); border: 1px solid rgba(240,192,64,0.25); }
+    p { color: var(--muted); margin-bottom: 12px; line-height: 1.7; font-size: 13px; }
+    p:last-child { margin-bottom: 0; }
+    strong { color: var(--text); font-weight: 700; }
+    ul.prose-list { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    ul.prose-list li { padding-left: 16px; position: relative; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    ul.prose-list li::before { content: '—'; position: absolute; left: 0; color: var(--dim); }
+    .divider { height: 1px; background: var(--border); margin: 24px 0; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; height: auto; } .content { padding: 24px 20px 48px; } .feature-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">DZIEN<span>.</span>NIK</div>
+      <div class="logo-sub">Podręcznik użytkownika</div>
+    </div>
+    <nav class="toc">
+      <div class="toc-section-label">Sekcje</div>
+      <a href="#overview"   class="toc-link active"><span class="toc-icon">🏠</span> Przegląd</a>
+      <a href="#start"      class="toc-link"><span class="toc-icon">🚀</span> Szybki start</a>
+      <a href="#journal"    class="toc-link"><span class="toc-icon">📋</span> Dziennik</a>
+      <a href="#entry-form" class="toc-link"><span class="toc-icon">✏️</span> Formularz wpisu</a>
+      <a href="#photos"     class="toc-link"><span class="toc-icon">📷</span> Zdjęcia</a>
+      <a href="#view"       class="toc-link"><span class="toc-icon">👁</span> Szczegóły wpisu</a>
+      <a href="#categories" class="toc-link"><span class="toc-icon">🏷</span> Kategorie</a>
+      <a href="#reports"    class="toc-link"><span class="toc-icon">📊</span> Raporty</a>
+      <a href="#archive"    class="toc-link"><span class="toc-icon">🗄</span> Archiwum</a>
+      <a href="#transfer"   class="toc-link"><span class="toc-icon">💾</span> Przenoszenie danych</a>
+      <a href="#settings"   class="toc-link"><span class="toc-icon">⚙</span> Ustawienia</a>
+      <a href="#shortcuts"  class="toc-link"><span class="toc-icon">⌨</span> Skróty klawiszowe</a>
+    </nav>
+    <div class="sidebar-back">
+      <a href="index.html" class="back-btn">← Powrót do dziennika</a>
+    </div>
+  </aside>
+
+  <main class="content">
+
+    <div class="hero" id="overview">
+      <div class="hero-eyebrow">Podręcznik użytkownika</div>
+      <div class="hero-title">Dziennik <span>Pracy</span></div>
+      <div class="hero-desc">Narzędzie do codziennej rejestracji wykonanych prac. Przechowuje wpisy, zdjęcia, kategorie i historię zmian — w pełni lokalnie, bez połączenia z internetem.</div>
+      <div class="version-badge"><span class="dot">●</span> v1.1 &nbsp;·&nbsp; Działa w pełni offline</div>
+    </div>
+
+    <section class="section" id="start">
+      <div class="section-header"><div class="section-icon">🚀</div><div class="section-title">Szybki start</div><div class="section-id">#start</div></div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Uruchom serwer</div><div class="step-desc">Otwórz terminal w folderze projektu i wykonaj polecenie <code>node server.js</code>. Wymagany Node.js 16+. Internet nie jest potrzebny.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Otwórz przeglądarkę</div><div class="step-desc">Przejdź pod adres <code>http://localhost:3000</code>. Użyj Chrome, Firefox, Edge lub innej nowoczesnej przeglądarki.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Utwórz kategorie</div><div class="step-desc">Przejdź do sekcji <strong>Kategorie</strong> i dodaj grupy prac (np. Elektryka, Hydraulika, Dach). Nieobowiązkowe, ale wygodne.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Dodaj pierwszy wpis</div><div class="step-desc">Kliknij <strong>+ Nowy wpis</strong> w sekcji Dziennik, wypełnij pola i zapisz. Baza danych jest przechowywana bezpośrednio w przeglądarce.</div></div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="info-note info-block"><span class="info-block-icon">🔒</span><div><strong>Pełna praca offline.</strong> Aplikacja nie wysyła żadnych żądań do internetu. Wszystkie dane (wpisy, kategorie, zdjęcia, czcionki) są przechowywane i przetwarzane wyłącznie na Twoim komputerze.</div></div>
+    </section>
+
+    <section class="section" id="journal">
+      <div class="section-header"><div class="section-icon">📋</div><div class="section-title">Dziennik</div><div class="section-id">#journal</div></div>
+      <p>Główna strona aplikacji. Wyświetla wszystkie wpisy w odwrotnym porządku chronologicznym — od najnowszych do najstarszych.</p>
+      <div class="feature-grid">
+        <div class="feature-card"><div class="feature-card-icon">🔍</div><div class="feature-card-title">Wyszukiwanie</div><div class="feature-card-desc">Wyszukiwanie pełnotekstowe w opisie pracy, wykonanych czynnościach i nazwie kategorii. Dopasowania są podświetlane bezpośrednio na kartach.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">🏷</div><div class="feature-card-title">Filtr kategorii</div><div class="feature-card-desc">Wybierz kategorię z listy rozwijanej — dziennik natychmiast pokaże tylko wpisy tej kategorii.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">📅</div><div class="feature-card-title">Filtr zakresu dat</div><div class="feature-card-desc">Ustaw datę początkową i końcową, aby zobaczyć wpisy z określonego okresu. Filtry można swobodnie łączyć.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">✕</div><div class="feature-card-title">Resetuj filtry</div><div class="feature-card-desc">Przycisk «Resetuj» natychmiast czyści wszystkie aktywne filtry i przywraca pełną listę wpisów.</div></div>
+      </div>
+      <p>Każda karta dziennika pokazuje datę, kategorię, opis pracy, skrótową listę wykonanych czynności i miniatury zdjęć (jeśli istnieją). Przyciski akcji pojawiają się po najechaniu kursorem.</p>
+    </section>
+
+    <section class="section" id="entry-form">
+      <div class="section-header"><div class="section-icon">✏️</div><div class="section-title">Formularz wpisu</div><div class="section-id">#entry-form</div></div>
+      <p>Formularz tworzenia i edycji wpisu otwiera się w oknie modalnym. Wszystkie pola są dostępne od razu, bez przełączania zakładek.</p>
+      <table class="field-table">
+        <thead><tr><th style="width:200px">Pole</th><th>Opis</th></tr></thead>
+        <tbody>
+          <tr><td><span class="field-name">Data</span><span class="field-required">*</span></td><td>Data wykonania pracy. Automatycznie wypełniana dzisiejszą datą przy tworzeniu nowego wpisu.</td></tr>
+          <tr><td><span class="field-name">Kategoria</span></td><td>Nieobowiązkowe. Wybierz z listy wcześniej utworzonych kategorii. Pomaga filtrować i grupować wpisy w raportach.</td></tr>
+          <tr><td><span class="field-name">Opis pracy</span><span class="field-required">*</span></td><td>Krótka nazwa zadania lub obiektu — widoczna jako nagłówek karty. Np.: «Wymiana licznika», «Naprawa dachu sekcja 3».</td></tr>
+          <tr><td><span class="field-name">Wykonane czynności</span></td><td>Szczegółowy opis tego, co zostało zrobione. Obsługuje wieloliniowy wpis. Wyświetlany na karcie i w raportach.</td></tr>
+          <tr><td><span class="field-name">Części / Materiały</span></td><td>Dynamiczna lista pozycji. Każdy wiersz zawiera nazwę i ilość. Przycisk «+ dodaj pozycję» dodaje nowy wiersz. Usuń wiersz przyciskiem ✕ po prawej.</td></tr>
+          <tr><td><span class="field-name">Zdjęcia</span></td><td>Do 10 zdjęć na wpis. Formaty: JPEG, PNG, GIF, WebP. Maksymalny rozmiar pliku: 10 MB. Szczegóły — w sekcji «Zdjęcia».</td></tr>
+        </tbody>
+      </table>
+      <div class="info-tip info-block"><span class="info-block-icon">💡</span><div>Pola oznaczone <strong style="color:#e04040">*</strong> są wymagane. Bez nich nie można zapisać wpisu — pojawi się podpowiedź.</div></div>
+      <div class="info-tip info-block"><span class="info-block-icon">⌨</span><div>Naciśnij <kbd>Ctrl</kbd> + <kbd>Enter</kbd>, aby szybko zapisać, <kbd>Esc</kbd> — aby anulować i zamknąć formularz.</div></div>
+    </section>
+
+    <section class="section" id="photos">
+      <div class="section-header"><div class="section-icon">📷</div><div class="section-title">Zdjęcia</div><div class="section-id">#photos</div></div>
+      <p>Do każdego wpisu można dołączyć do <strong>10 zdjęć</strong>. Pliki są przechowywane w folderze <code>photos/</code> wewnątrz projektu na dysku — nie w bazie danych przeglądarki.</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Otwórz formularz wpisu</div><div class="step-desc">Utwórz nowy wpis lub kliknij ✎ przy istniejącym.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Kliknij przycisk dodawania zdjęć</div><div class="step-desc">W dolnej części formularza — sekcja «Zdjęcia» z przyciskiem z przerywaną ramką. Można wybrać kilka plików naraz.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Poczekaj na przesłanie</div><div class="step-desc">Zdjęcia przesyłane są na lokalny serwer i natychmiast pojawiają się jako miniatury. Można dodawać pojedynczo lub kilka naraz.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Zapisz wpis</div><div class="step-desc">Zdjęcia są powiązane z wpisem po zapisaniu. Jeśli klikniesz «Anuluj» — nowo przesłane zdjęcia są automatycznie usuwane.</div></div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="feature-grid">
+        <div class="feature-card"><div class="feature-card-icon">🗑</div><div class="feature-card-title">Usuwanie zdjęć</div><div class="feature-card-desc">Najedź kursorem na miniaturę — pojawi się przycisk ✕. Usunięte zdjęcie jest oznaczane; plik jest kasowany z dysku przy zapisie wpisu.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">🔍</div><div class="feature-card-title">Pełnoekranowy podgląd</div><div class="feature-card-desc">Kliknij dowolną miniaturę, aby otworzyć lightbox. Nawiguj strzałkami lub klawiszami ← →. Zamknij Esc lub klikając tło.</div></div>
+      </div>
+      <div class="info-warn info-block"><span class="info-block-icon">⚠</span><div>Przenosząc dane na inny komputer, zawsze kopiuj folder <code>photos/</code> razem z resztą projektu. Bez niego zdjęcia we wpisach nie będą wyświetlane.</div></div>
+    </section>
+
+    <section class="section" id="view">
+      <div class="section-header"><div class="section-icon">👁</div><div class="section-title">Szczegóły wpisu</div><div class="section-id">#view</div></div>
+      <p>Przycisk <strong>«👁 Szczegóły»</strong> na karcie dziennika otwiera pełnoekranowe okno modalne z kompletną treścią wpisu.</p>
+      <ul class="prose-list">
+        <li>Data, kategoria i nagłówek wpisu</li>
+        <li>Pełny tekst wykonanych czynności</li>
+        <li>Lista części i materiałów z ilościami</li>
+        <li>Siatka zdjęć z obsługą lightboxa</li>
+        <li>Przycisk <strong>«Edytuj»</strong> — przechodzi bezpośrednio do trybu edycji</li>
+      </ul>
+      <div class="info-tip info-block"><span class="info-block-icon">💡</span><div>Przyciski akcji karty (<strong>Szczegóły</strong>, edycja, usuwanie) pojawiają się po najechaniu kursorem na kartę.</div></div>
+    </section>
+
+    <section class="section" id="categories">
+      <div class="section-header"><div class="section-icon">🏷</div><div class="section-title">Kategorie</div><div class="section-id">#categories</div></div>
+      <p>Kategorie pomagają grupować wpisy według rodzaju prac. Zaleca się tworzenie kategorii przed rozpoczęciem prowadzenia dziennika.</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Przejdź do sekcji «Kategorie»</div><div class="step-desc">Kliknij w lewym pasku bocznym.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Kliknij «+ Dodaj»</div><div class="step-desc">Wpisz nazwę kategorii. Przykłady: Elektryka, Hydraulika, Dach, HVAC, Niskoprądowe.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Używaj przy tworzeniu wpisów</div><div class="step-desc">Kategoria pojawi się na liście rozwijanej w formularzu nowego wpisu oraz w filtrach dziennika.</div></div></div>
+      </div>
+      <div class="info-tip info-block"><span class="info-block-icon">💡</span><div>Na każdej karcie kategorii wyświetlany jest licznik wpisów. Po usunięciu kategorii — wpisy nie są usuwane, tylko ich pole «kategoria» jest czyszczone.</div></div>
+    </section>
+
+    <section class="section" id="reports">
+      <div class="section-header"><div class="section-icon">📊</div><div class="section-title">Raporty</div><div class="section-id">#reports</div></div>
+      <p>Sekcja generowania wydruków raportów o wykonanych pracach za wybrany okres.</p>
+      <div class="feature-grid">
+        <div class="feature-card"><div class="feature-card-icon">⚡</div><div class="feature-card-title">Szybkie okresy</div><div class="feature-card-desc">Cztery przyciski do natychmiastowego wyboru okresu: ten tydzień, ten miesiąc, ten kwartał, ten rok.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">🗓</div><div class="feature-card-title">Własny okres</div><div class="feature-card-desc">Ustaw dowolne daty ręcznie. Podgląd aktualizuje się natychmiast.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">🏷</div><div class="feature-card-title">Filtr kategorii</div><div class="feature-card-desc">Generuj raport dla jednej kategorii lub dla wszystkich naraz.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">🖨</div><div class="feature-card-title">Druk / PDF</div><div class="feature-card-desc">Przycisk «Drukuj» otwiera gotowy dokument. W oknie dialogowym drukowania przeglądarki wybierz «Zapisz jako PDF» zamiast drukarki.</div></div>
+      </div>
+      <p>W raporcie wpisy są grupowane według dat. Dla każdego wpisu: opis, kategoria, wykonane czynności i lista materiałów. Zdjęcia nie są uwzględniane w raportach.</p>
+      <div class="info-tip info-block"><span class="info-block-icon">💡</span><div>Po otwarciu sekcji «Raporty» automatycznie wybierany jest <strong>bieżący miesiąc</strong> i natychmiast wyświetlany podgląd.</div></div>
+    </section>
+
+    <section class="section" id="archive">
+      <div class="section-header"><div class="section-icon">🗄</div><div class="section-title">Archiwum migawek</div><div class="section-id">#archive</div></div>
+      <p>System automatycznego tworzenia kopii zapasowych bazy danych. Migawki tworzone są automatycznie w krytycznych sytuacjach oraz ręcznie na żądanie. Każda migawka zawiera pełną kopię wszystkich wpisów i kategorii.</p>
+      <table class="field-table">
+        <thead><tr><th>Typ migawki</th><th>Kiedy tworzona</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-auto">Przed czyszczeniem</span></td><td>Automatycznie po kliknięciu «Wyczyść wszystkie dane» w ustawieniach — przed usunięciem.</td></tr>
+          <tr><td><span class="badge badge-import">Przed importem</span></td><td>Automatycznie przy ładowaniu pliku JSON — przed zastąpieniem istniejących danych.</td></tr>
+          <tr><td><span class="badge badge-import">Przed przywróceniem</span></td><td>Automatycznie przy przywracaniu z innej migawki — bieżący stan jest najpierw zapisywany.</td></tr>
+          <tr><td><span class="badge badge-manual">Ręczna migawka</span></td><td>Przycisk «📷 Utwórz migawkę» na stronie archiwum — w dowolnym momencie.</td></tr>
+        </tbody>
+      </table>
+      <div class="feature-grid">
+        <div class="feature-card"><div class="feature-card-icon">↺</div><div class="feature-card-title">Przywracanie</div><div class="feature-card-desc">Przycisk «↺ Przywróć» zastępuje bieżącą bazę danych danymi z migawki. Bieżący stan jest automatycznie zapisywany najpierw.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">↓</div><div class="feature-card-title">Pobierz migawkę</div><div class="feature-card-desc">Każdą migawkę można pobrać jako plik JSON i przenieść na inny komputer przez Import.</div></div>
+      </div>
+      <div class="info-note info-block"><span class="info-block-icon">ℹ</span><div>Przechowywanych jest maksymalnie <strong>30 migawek</strong>. Po przekroczeniu limitu najstarsza migawka jest usuwana automatycznie. Migawki nie zawierają zdjęć — tylko dane tekstowe wpisów.</div></div>
+    </section>
+
+    <section class="section" id="transfer">
+      <div class="section-header"><div class="section-icon">💾</div><div class="section-title">Przenoszenie danych</div><div class="section-id">#transfer</div></div>
+      <p>Dane przechowywane są w dwóch miejscach: dane tekstowe — w IndexedDB przeglądarki, zdjęcia — w folderze <code>photos/</code> na dysku. Pełne przeniesienie wymaga przeniesienia obu.</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Wyeksportuj bazę danych</div><div class="step-desc">Kliknij «↑ Eksport» na górnym pasku lub w Ustawieniach. Pobierze się plik <code>work-journal-DATA.json</code>.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Skopiuj folder photos/</div><div class="step-desc">Skopiuj cały folder <code>photos/</code> z projektu. Zawiera wszystkie przesłane zdjęcia.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Uruchom serwer na nowym komputerze</div><div class="step-desc">Skopiuj cały projekt, umieść folder <code>photos/</code> na miejscu, uruchom <code>node server.js</code>.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Zaimportuj JSON</div><div class="step-desc">Kliknij «↓ Import» i wybierz zapisany plik JSON. Wszystkie wpisy i kategorie zostaną przywrócone.</div></div></div>
+      </div>
+      <div class="info-tip info-block"><span class="info-block-icon">💡</span><div><strong>Najprostszy sposób przeniesienia</strong> — skopiuj cały folder projektu. Skopiuj IndexedDB i folder <code>photos/</code> z danymi, w przeciwnym razie część informacji zostanie utracona.</div></div>
+    </section>
+
+    <section class="section" id="settings">
+      <div class="section-header"><div class="section-icon">⚙</div><div class="section-title">Ustawienia</div><div class="section-id">#settings</div></div>
+      <table class="field-table">
+        <thead><tr><th style="width:220px">Ustawienie</th><th>Opis</th></tr></thead>
+        <tbody>
+          <tr><td><span class="field-name">Język interfejsu</span></td><td>Przełączanie między rosyjskim, angielskim i polskim. Wpływa tylko na interfejs — dane (wpisy, kategorie) nie są zmieniane. Wybór jest zapisywany między sesjami.</td></tr>
+          <tr><td><span class="field-name">Eksport bazy</span></td><td>Pobierz wszystkie wpisy i kategorie jako plik JSON. Używany do tworzenia kopii zapasowych i przenoszenia na inny komputer.</td></tr>
+          <tr><td><span class="field-name">Import bazy</span></td><td>Załaduj dane z pliku JSON. <strong>Uwaga:</strong> bieżące dane zostaną zastąpione. Migawka jest automatycznie tworzona przed importem.</td></tr>
+          <tr><td><span class="field-name">Wyczyść wszystkie dane</span></td><td>Usuwa wszystkie wpisy i kategorie z bazy danych przeglądarki. <strong>Uwaga:</strong> migawka jest automatycznie tworzona przed czyszczeniem. Zdjęcia w folderze <code>photos/</code> nie są usuwane.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section" id="shortcuts">
+      <div class="section-header"><div class="section-icon">⌨</div><div class="section-title">Skróty klawiszowe</div><div class="section-id">#shortcuts</div></div>
+      <table class="shortcut-table">
+        <thead><tr><th style="width:220px">Klawisze</th><th>Akcja</th><th>Kontekst</th></tr></thead>
+        <tbody>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td><td>Zapisz wpis / kategorię</td><td>Otwarty formularz</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Zamknij okno modalne / lightbox</td><td>Dowolne okno</td></tr>
+          <tr><td><kbd>→</kbd></td><td>Następne zdjęcie</td><td>Lightbox</td></tr>
+          <tr><td><kbd>←</kbd></td><td>Poprzednie zdjęcie</td><td>Lightbox</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+<script>
+  const sections = document.querySelectorAll('section[id], div[id]');
+  const links = document.querySelectorAll('.toc-link');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.toc-link[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

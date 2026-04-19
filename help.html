@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Помощь — Рабочий журнал</title>
+  <style>
+    /* ── LOCAL FONTS ── */
+    @font-face {
+      font-family: 'AppMono';
+      src: url('fonts/LiberationMono-Regular.ttf') format('truetype');
+      font-weight: 400; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'AppMono';
+      src: url('fonts/LiberationMono-Bold.ttf') format('truetype');
+      font-weight: 700; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'AppDisplay';
+      src: url('fonts/LiberationSans-Regular.ttf') format('truetype');
+      font-weight: 400; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'AppDisplay';
+      src: url('fonts/LiberationSans-Bold.ttf') format('truetype');
+      font-weight: 700; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'AppDisplay';
+      src: url('fonts/LiberationSans-Italic.ttf') format('truetype');
+      font-weight: 400; font-style: italic; font-display: block;
+    }
+
+    /* ── RESET & BASE ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0e0f11;
+      --surface:   #16181c;
+      --surface2:  #1e2128;
+      --border:    #2a2d35;
+      --accent:    #f0c040;
+      --accent2:   #e07020;
+      --text:      #d8dae0;
+      --muted:     #6b7080;
+      --dim:       #3a3f4a;
+      --success:   #40c080;
+      --danger:    #e04040;
+      --mono:      'AppMono', 'Liberation Mono', monospace;
+      --display:   'AppDisplay', 'Liberation Sans', Arial, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--display);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── LAYOUT ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-logo {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo-text {
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+    }
+    .logo-text span { color: var(--accent2); }
+
+    .logo-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+      font-family: var(--mono);
+    }
+
+    .toc {
+      padding: 12px 0;
+      flex: 1;
+    }
+
+    .toc-section-label {
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--dim);
+      padding: 10px 16px 4px;
+      font-family: var(--mono);
+    }
+
+    .toc-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 16px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 12px;
+      transition: all 0.15s;
+      border-left: 2px solid transparent;
+    }
+
+    .toc-link:hover {
+      background: var(--surface2);
+      color: var(--text);
+      border-left-color: var(--dim);
+    }
+
+    .toc-link.active {
+      background: rgba(240,192,64,0.08);
+      color: var(--accent);
+      border-left-color: var(--accent);
+    }
+
+    .toc-icon { font-size: 14px; flex-shrink: 0; }
+
+    .sidebar-back {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 12px;
+      font-family: var(--mono);
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      transition: all 0.15s;
+    }
+    .back-btn:hover { background: var(--surface2); color: var(--text); }
+
+    /* ── MAIN CONTENT ── */
+    .content {
+      padding: 40px 48px 80px;
+      max-width: 860px;
+    }
+
+    /* ── PAGE HERO ── */
+    .hero {
+      margin-bottom: 48px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hero-eyebrow {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    .hero-title {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+
+    .hero-title span { color: var(--accent); }
+
+    .hero-desc {
+      font-size: 15px;
+      color: var(--muted);
+      max-width: 560px;
+      line-height: 1.7;
+    }
+
+    .version-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 16px;
+    }
+    .version-badge .dot { color: var(--success); }
+
+    /* ── SECTIONS ── */
+    .section {
+      margin-bottom: 56px;
+      scroll-margin-top: 24px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-icon {
+      width: 36px; height: 36px;
+      background: rgba(240,192,64,0.1);
+      border: 1px solid rgba(240,192,64,0.2);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .section-id {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--dim);
+      margin-left: auto;
+    }
+
+    /* ── FEATURE CARDS ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      transition: border-color 0.15s;
+    }
+
+    .feature-card:hover { border-color: #3a3f4a; }
+
+    .feature-card-icon { font-size: 22px; margin-bottom: 8px; }
+
+    .feature-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .feature-card-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── STEP LIST ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 26px; height: 26px;
+      background: var(--accent);
+      color: #0e0f11;
+      border-radius: 50%;
+      font-weight: 700;
+      font-size: 12px;
+      font-family: var(--mono);
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+    }
+
+    .step-body { flex: 1; }
+
+    .step-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    .step-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── INFO BLOCKS ── */
+    .info-block {
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      gap: 12px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .info-block-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+    .info-tip {
+      background: rgba(240,192,64,0.08);
+      border: 1px solid rgba(240,192,64,0.2);
+      color: var(--text);
+    }
+
+    .info-note {
+      background: rgba(64,192,128,0.08);
+      border: 1px solid rgba(64,192,128,0.2);
+      color: var(--text);
+    }
+
+    .info-warn {
+      background: rgba(224,64,64,0.08);
+      border: 1px solid rgba(224,64,64,0.2);
+      color: var(--text);
+    }
+
+    /* ── SHORTCUT TABLE ── */
+    .shortcut-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .shortcut-table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--dim);
+      font-family: var(--mono);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .shortcut-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(42,45,53,0.5);
+      color: var(--muted);
+      vertical-align: middle;
+    }
+
+    .shortcut-table tr:last-child td { border-bottom: none; }
+    .shortcut-table tr:hover td { background: var(--surface2); }
+
+    kbd {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-bottom-width: 2px;
+      border-radius: 5px;
+      padding: 2px 7px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    /* ── FIELD TABLE ── */
+    .field-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .field-table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--dim);
+      font-family: var(--mono);
+      border-bottom: 2px solid var(--border);
+      background: var(--surface2);
+    }
+
+    .field-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(42,45,53,0.6);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+    .field-table tr:last-child td { border-bottom: none; }
+    .field-table tr:hover td { background: rgba(30,33,40,0.5); }
+
+    .field-name {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .field-required {
+      color: var(--danger);
+      font-size: 10px;
+      margin-left: 4px;
+    }
+
+    .field-desc { color: var(--muted); }
+
+    /* ── INLINE CODE ── */
+    code {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      color: var(--accent);
+    }
+
+    /* ── BADGE ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-auto {
+      background: rgba(224,64,64,0.12);
+      color: #ff8080;
+      border: 1px solid rgba(224,64,64,0.25);
+    }
+
+    .badge-manual {
+      background: rgba(64,192,128,0.12);
+      color: var(--success);
+      border: 1px solid rgba(64,192,128,0.25);
+    }
+
+    .badge-import {
+      background: rgba(240,192,64,0.12);
+      color: var(--accent);
+      border: 1px solid rgba(240,192,64,0.25);
+    }
+
+    /* ── PROSE ── */
+    p { color: var(--muted); margin-bottom: 12px; line-height: 1.7; font-size: 13px; }
+    p:last-child { margin-bottom: 0; }
+
+    strong { color: var(--text); font-weight: 700; }
+
+    ul.prose-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    ul.prose-list li {
+      padding-left: 16px;
+      position: relative;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    ul.prose-list li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--dim);
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 24px 0;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+      .content { padding: 24px 20px 48px; }
+      .feature-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ══════════ SIDEBAR ══════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">РАБ<span>.</span>ЖУРНАЛ</div>
+      <div class="logo-sub">Справочное руководство</div>
+    </div>
+
+    <nav class="toc">
+      <div class="toc-section-label">Разделы</div>
+      <a href="#overview"    class="toc-link active"><span class="toc-icon">🏠</span> Обзор</a>
+      <a href="#start"       class="toc-link"><span class="toc-icon">🚀</span> Быстрый старт</a>
+      <a href="#journal"     class="toc-link"><span class="toc-icon">📋</span> Журнал</a>
+      <a href="#entry-form"  class="toc-link"><span class="toc-icon">✏️</span> Форма записи</a>
+      <a href="#photos"      class="toc-link"><span class="toc-icon">📷</span> Фотографии</a>
+      <a href="#view"        class="toc-link"><span class="toc-icon">👁</span> Просмотр записи</a>
+      <a href="#categories"  class="toc-link"><span class="toc-icon">🏷</span> Категории</a>
+      <a href="#reports"     class="toc-link"><span class="toc-icon">📊</span> Отчёты</a>
+      <a href="#archive"     class="toc-link"><span class="toc-icon">🗄</span> Архив</a>
+      <a href="#transfer"    class="toc-link"><span class="toc-icon">💾</span> Перенос данных</a>
+      <a href="#settings"    class="toc-link"><span class="toc-icon">⚙</span> Настройки</a>
+      <a href="#shortcuts"   class="toc-link"><span class="toc-icon">⌨</span> Горячие клавиши</a>
+    </nav>
+
+    <div class="sidebar-back">
+      <a href="/" class="back-btn">← Вернуться в журнал</a>
+    </div>
+  </aside>
+
+  <!-- ══════════ CONTENT ══════════ -->
+  <main class="content">
+
+    <!-- HERO -->
+    <div class="hero" id="overview">
+      <div class="hero-eyebrow">Справочное руководство</div>
+      <div class="hero-title">Рабочий <span>журнал</span></div>
+      <div class="hero-desc">
+        Инструмент для ежедневной фиксации выполненных работ.
+        Хранит записи, фотографии, категории и историю изменений —
+        полностью локально, без подключения к интернету.
+      </div>
+      <div class="version-badge">
+        <span class="dot">●</span> v1.1 &nbsp;·&nbsp; Работает полностью офлайн
+      </div>
+    </div>
+
+    <!-- QUICK START -->
+    <section class="section" id="start">
+      <div class="section-header">
+        <div class="section-icon">🚀</div>
+        <div class="section-title">Быстрый старт</div>
+        <div class="section-id">#start</div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Запустите сервер</div>
+            <div class="step-desc">
+              Откройте терминал в папке проекта и выполните <code>node server.js</code>.
+              Требуется Node.js 16+. Интернет не нужен.
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Откройте браузер</div>
+            <div class="step-desc">
+              Перейдите по адресу <code>http://localhost:3000</code>.
+              Используйте Chrome, Firefox, Edge или любой современный браузер.
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Создайте категории</div>
+            <div class="step-desc">
+              Перейдите в раздел <strong>Категории</strong> и добавьте нужные группы работ
+              (например: Электрика, Сантехника, Кровля). Это необязательно, но удобно.
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Добавьте первую запись</div>
+            <div class="step-desc">
+              Нажмите <strong>+ Новая запись</strong> в разделе Журнал, заполните поля
+              и сохраните. База данных хранится прямо в браузере.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="info-note info-block">
+        <span class="info-block-icon">🔒</span>
+        <div>
+          <strong>Полная офлайн-работа.</strong> Приложение не делает ни одного запроса
+          в интернет. Все данные (записи, категории, фотографии, шрифты) хранятся
+          и обрабатываются исключительно на вашем компьютере.
+        </div>
+      </div>
+    </section>
+
+    <!-- JOURNAL -->
+    <section class="section" id="journal">
+      <div class="section-header">
+        <div class="section-icon">📋</div>
+        <div class="section-title">Журнал</div>
+        <div class="section-id">#journal</div>
+      </div>
+
+      <p>Главная страница приложения. Показывает все записи в обратном хронологическом
+      порядке — от новых к старым.</p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-card-icon">🔍</div>
+          <div class="feature-card-title">Поиск</div>
+          <div class="feature-card-desc">Полнотекстовый поиск по описанию работы, выполненным действиям и названию категории. Совпадения подсвечиваются прямо в карточках.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">🏷</div>
+          <div class="feature-card-title">Фильтр по категории</div>
+          <div class="feature-card-desc">Выберите категорию из выпадающего списка — журнал мгновенно покажет только записи этой категории.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">📅</div>
+          <div class="feature-card-title">Фильтр по периоду</div>
+          <div class="feature-card-desc">Задайте начальную и конечную дату, чтобы увидеть записи за конкретный диапазон. Фильтры можно комбинировать.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">✕</div>
+          <div class="feature-card-title">Сброс фильтров</div>
+          <div class="feature-card-desc">Кнопка «Сброс» мгновенно очищает все активные фильтры и возвращает полный список записей.</div>
+        </div>
+      </div>
+
+      <p>Каждая карточка в журнале показывает дату, категорию, описание работы,
+      краткий список выполненных действий и миниатюры фотографий (если есть).
+      Кнопки управления карточкой появляются при наведении курсора.</p>
+    </section>
+
+    <!-- ENTRY FORM -->
+    <section class="section" id="entry-form">
+      <div class="section-header">
+        <div class="section-icon">✏️</div>
+        <div class="section-title">Форма записи</div>
+        <div class="section-id">#entry-form</div>
+      </div>
+
+      <p>Форма создания и редактирования записи открывается в модальном окне.
+      Все поля доступны сразу без переключения вкладок.</p>
+
+      <table class="field-table">
+        <thead>
+          <tr>
+            <th style="width:180px">Поле</th>
+            <th>Описание</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="field-name">Дата</span><span class="field-required">*</span></td>
+            <td class="field-desc">Дата выполнения работы. Заполняется автоматически текущей датой при создании новой записи.</td>
+          </tr>
+          <tr>
+            <td><span class="field-name">Категория</span></td>
+            <td class="field-desc">Необязательное поле. Выберите из списка категорий, созданных заранее. Помогает фильтровать и группировать записи в отчётах.</td>
+          </tr>
+          <tr>
+            <td><span class="field-name">Описание работы</span><span class="field-required">*</span></td>
+            <td class="field-desc">Краткое название задачи или объекта — то, что будет видно в заголовке карточки. Например: «Замена счётчика», «Ремонт кровли секция 3».</td>
+          </tr>
+          <tr>
+            <td><span class="field-name">Выполненные действия</span></td>
+            <td class="field-desc">Подробное описание того, что именно было сделано. Поддерживает многострочный ввод. Отображается в карточке и в отчётах.</td>
+          </tr>
+          <tr>
+            <td><span class="field-name">Запчасти / Материалы</span></td>
+            <td class="field-desc">Динамический список позиций. Каждая строка содержит наименование и количество. Кнопка «+ добавить позицию» добавляет новую строку. Строку можно удалить кнопкой ✕ справа.</td>
+          </tr>
+          <tr>
+            <td><span class="field-name">Фотографии</span></td>
+            <td class="field-desc">До 10 фотографий на запись. Форматы: JPEG, PNG, GIF, WebP. Максимальный размер файла: 10 МБ. Подробнее — в разделе «Фотографии».</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="info-tip info-block">
+        <span class="info-block-icon">💡</span>
+        <div>
+          Поля помеченные <strong style="color:#e04040">*</strong> — обязательные.
+          Сохранить запись без них не получится — появится подсказка.
+        </div>
+      </div>
+
+      <div class="info-tip info-block">
+        <span class="info-block-icon">⌨</span>
+        <div>
+          Нажмите <kbd>Ctrl</kbd> + <kbd>Enter</kbd> для быстрого сохранения,
+          <kbd>Esc</kbd> — для отмены и закрытия формы.
+        </div>
+      </div>
+    </section>
+
+    <!-- PHOTOS -->
+    <section class="section" id="photos">
+      <div class="section-header">
+        <div class="section-icon">📷</div>
+        <div class="section-title">Фотографии</div>
+        <div class="section-id">#photos</div>
+      </div>
+
+      <p>К каждой записи можно прикрепить до <strong>10 фотографий</strong>.
+      Файлы хранятся в папке <code>photos/</code> внутри проекта на диске —
+      не в базе данных браузера.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Откройте форму записи</div>
+            <div class="step-desc">Создайте новую запись или нажмите ✎ на существующей.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Нажмите на кнопку добавления фото</div>
+            <div class="step-desc">В нижней части формы — секция «Фотографии» с кнопкой с пунктирной рамкой. Можно выбрать несколько файлов сразу.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Дождитесь загрузки</div>
+            <div class="step-desc">Фото загружаются на локальный сервер и сразу появляются в виде миниатюр. Можно добавлять по одному или сразу несколько.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Сохраните запись</div>
+            <div class="step-desc">Фотографии привязываются к записи при сохранении. Если нажать «Отмена» — только что загруженные фото автоматически удаляются.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-card-icon">🗑</div>
+          <div class="feature-card-title">Удаление фото</div>
+          <div class="feature-card-desc">Наведите курсор на миниатюру — появится кнопка ✕. Удалённое фото помечается, файл стирается с диска при сохранении записи.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">🔍</div>
+          <div class="feature-card-title">Полноэкранный просмотр</div>
+          <div class="feature-card-desc">Кликните по любой миниатюре — откроется лайтбокс. Листайте стрелками или клавишами ← →. Закрытие — Esc или клик на фон.</div>
+        </div>
+      </div>
+
+      <div class="info-warn info-block">
+        <span class="info-block-icon">⚠</span>
+        <div>
+          При переносе на другой компьютер обязательно копируйте папку <code>photos/</code>
+          вместе с остальными файлами проекта. Без неё фотографии в записях не отобразятся.
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW MODAL -->
+    <section class="section" id="view">
+      <div class="section-header">
+        <div class="section-icon">👁</div>
+        <div class="section-title">Просмотр записи</div>
+        <div class="section-id">#view</div>
+      </div>
+
+      <p>Кнопка <strong>«👁 Подробнее»</strong> в карточке журнала открывает
+      полноэкранную модалку с полным содержимым записи.</p>
+
+      <ul class="prose-list">
+        <li>Дата, категория и заголовок записи</li>
+        <li>Полный текст выполненных действий</li>
+        <li>Список запчастей и материалов с количеством</li>
+        <li>Сетка фотографий с возможностью открыть лайтбокс</li>
+        <li>Кнопка <strong>«Редактировать»</strong> — сразу переходит в режим правки</li>
+      </ul>
+
+      <div class="info-tip info-block">
+        <span class="info-block-icon">💡</span>
+        <div>Кнопки управления карточкой (<strong>Подробнее</strong>, редактирование, удаление)
+        появляются при наведении курсора на карточку.</div>
+      </div>
+    </section>
+
+    <!-- CATEGORIES -->
+    <section class="section" id="categories">
+      <div class="section-header">
+        <div class="section-icon">🏷</div>
+        <div class="section-title">Категории</div>
+        <div class="section-id">#categories</div>
+      </div>
+
+      <p>Категории помогают группировать записи по типу работ. Рекомендуется
+      создать категории до начала ведения журнала.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Перейдите в раздел «Категории»</div>
+            <div class="step-desc">Нажмите в боковом меню слева.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Нажмите «+ Добавить»</div>
+            <div class="step-desc">Введите название категории. Примеры: Электрика, Сантехника, Кровля, ОВиК, Слаботочка.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Используйте при создании записей</div>
+            <div class="step-desc">Категория появится в выпадающем списке в форме новой записи и в фильтрах журнала.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-tip info-block">
+        <span class="info-block-icon">💡</span>
+        <div>
+          На каждой карточке категории отображается счётчик записей.
+          При удалении категории — сами записи не удаляются,
+          только поле «категория» у них очищается.
+        </div>
+      </div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="section" id="reports">
+      <div class="section-header">
+        <div class="section-icon">📊</div>
+        <div class="section-title">Отчёты</div>
+        <div class="section-id">#reports</div>
+      </div>
+
+      <p>Раздел формирования печатных отчётов о выполненных работах
+      за выбранный период.</p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-card-icon">⚡</div>
+          <div class="feature-card-title">Быстрые периоды</div>
+          <div class="feature-card-desc">Четыре кнопки для мгновенного выбора периода: эта неделя, этот месяц, этот квартал, этот год.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">🗓</div>
+          <div class="feature-card-title">Произвольный период</div>
+          <div class="feature-card-desc">Задайте любые начальную и конечную даты вручную. Предварительный просмотр обновляется немедленно.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">🏷</div>
+          <div class="feature-card-title">Фильтр категорий</div>
+          <div class="feature-card-desc">Сформируйте отчёт только по одной категории или по всем сразу.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">🖨</div>
+          <div class="feature-card-title">Печать / PDF</div>
+          <div class="feature-card-desc">Кнопка «Печать» открывает готовый документ. В диалоге печати браузера выберите «Сохранить как PDF» вместо принтера.</div>
+        </div>
+      </div>
+
+      <p>В отчёте записи группируются по датам. Для каждой записи указываются:
+      описание, категория, выполненные действия и список использованных материалов.
+      Фотографии в отчёт не включаются.</p>
+
+      <div class="info-tip info-block">
+        <span class="info-block-icon">💡</span>
+        <div>При открытии раздела «Отчёты» автоматически выбирается <strong>текущий месяц</strong>
+        и сразу показывается предварительный просмотр.</div>
+      </div>
+    </section>
+
+    <!-- ARCHIVE -->
+    <section class="section" id="archive">
+      <div class="section-header">
+        <div class="section-icon">🗄</div>
+        <div class="section-title">Архив снимков</div>
+        <div class="section-id">#archive</div>
+      </div>
+
+      <p>Система автоматического резервного копирования базы данных.
+      Снимки создаются без участия пользователя в критических ситуациях,
+      а также вручную по запросу.</p>
+
+      <p>Каждый снимок содержит полную копию всех записей и категорий
+      на момент создания.</p>
+
+      <table class="field-table">
+        <thead>
+          <tr><th>Тип снимка</th><th>Когда создаётся</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-auto">Перед очисткой</span></td>
+            <td class="field-desc">Автоматически при нажатии «Очистить все данные» в настройках — до удаления.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-import">Перед импортом</span></td>
+            <td class="field-desc">Автоматически при загрузке JSON-файла — до замены существующих данных.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-import">Перед восстановлением</span></td>
+            <td class="field-desc">Автоматически при восстановлении из другого снимка — текущее состояние сохраняется.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-manual">Ручной снимок</span></td>
+            <td class="field-desc">По кнопке «📷 Создать снимок» на странице архива — в любой момент по вашему желанию.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-card-icon">↺</div>
+          <div class="feature-card-title">Восстановление</div>
+          <div class="feature-card-desc">Кнопка «↺ Восстановить» заменяет текущую базу данными из снимка. Текущее состояние перед этим автоматически сохраняется.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon">↓</div>
+          <div class="feature-card-title">Скачать снимок</div>
+          <div class="feature-card-desc">Любой снимок можно скачать как JSON-файл и перенести на другой компьютер через Импорт.</div>
+        </div>
+      </div>
+
+      <div class="info-note info-block">
+        <span class="info-block-icon">ℹ</span>
+        <div>Хранится не более <strong>30 снимков</strong>. При превышении лимита
+        самый старый снимок удаляется автоматически.
+        Снимки не включают фотографии — только текстовые данные записей.</div>
+      </div>
+    </section>
+
+    <!-- TRANSFER -->
+    <section class="section" id="transfer">
+      <div class="section-header">
+        <div class="section-icon">💾</div>
+        <div class="section-title">Перенос данных</div>
+        <div class="section-id">#transfer</div>
+      </div>
+
+      <p>Данные хранятся в двух местах: текстовые данные — в IndexedDB браузера,
+      фотографии — в папке <code>photos/</code> на диске. Для полного переноса
+      нужно перенести и то, и другое.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Экспортируйте базу данных</div>
+            <div class="step-desc">Нажмите «↑ Экспорт» в верхней панели или в Настройках.
+            Скачается файл <code>work-journal-ДАТА.json</code>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Скопируйте папку photos/</div>
+            <div class="step-desc">Скопируйте всю папку <code>photos/</code> из проекта.
+            В ней хранятся все загруженные фотографии.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">На новом компьютере запустите сервер</div>
+            <div class="step-desc">Скопируйте весь проект, поместите папку <code>photos/</code>
+            на место, запустите <code>node server.js</code>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Импортируйте JSON</div>
+            <div class="step-desc">Нажмите «↓ Импорт» и выберите сохранённый JSON-файл.
+            Все записи и категории восстановятся.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-tip info-block">
+        <span class="info-block-icon">💡</span>
+        <div><strong>Самый простой способ переноса</strong> — скопировать всю папку
+        проекта целиком. IndexedDB и папку <code>photos/</code> скопируйте с данными,
+        иначе часть информации будет потеряна.</div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="section" id="settings">
+      <div class="section-header">
+        <div class="section-icon">⚙</div>
+        <div class="section-title">Настройки</div>
+        <div class="section-id">#settings</div>
+      </div>
+
+      <table class="field-table">
+        <thead>
+          <tr><th style="width:200px">Параметр</th><th>Описание</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="field-name">Язык интерфейса</span></td>
+            <td class="field-desc">Переключение между русским, английским и польским. Влияет только на интерфейс — данные (записи, категории) языком не затрагиваются. Выбор сохраняется между сессиями.</td>
+          </tr>
+          <tr>
+            <td><span class="field-name">Экспорт базы</span></td>
+            <td class="field-desc">Скачать все записи и категории в JSON-файл. Используется для резервного копирования и переноса на другой компьютер.</td>
+          </tr>
+          <tr>
+            <td><span class="field-name">Импорт базы</span></td>
+            <td class="field-desc">Загрузить данные из JSON-файла. <strong>Внимание:</strong> текущие данные будут заменены. Перед импортом автоматически создаётся снимок архива.</td>
+          </tr>
+          <tr>
+            <td><span class="field-name">Очистить все данные</span></td>
+            <td class="field-desc">Удаляет все записи и категории из базы данных браузера. <strong>Внимание:</strong> перед очисткой автоматически создаётся снимок архива. Фотографии в папке <code>photos/</code> не удаляются.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- SHORTCUTS -->
+    <section class="section" id="shortcuts">
+      <div class="section-header">
+        <div class="section-icon">⌨</div>
+        <div class="section-title">Горячие клавиши</div>
+        <div class="section-id">#shortcuts</div>
+      </div>
+
+      <table class="shortcut-table">
+        <thead>
+          <tr>
+            <th style="width:220px">Клавиши</th>
+            <th>Действие</th>
+            <th>Контекст</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td>
+            <td>Сохранить запись / категорию</td>
+            <td>Открытая форма</td>
+          </tr>
+          <tr>
+            <td><kbd>Esc</kbd></td>
+            <td>Закрыть модальное окно / лайтбокс</td>
+            <td>Любое окно</td>
+          </tr>
+          <tr>
+            <td><kbd>→</kbd></td>
+            <td>Следующая фотография</td>
+            <td>Лайтбокс</td>
+          </tr>
+          <tr>
+            <td><kbd>←</kbd></td>
+            <td>Предыдущая фотография</td>
+            <td>Лайтбокс</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // Active TOC link on scroll
+  const sections = document.querySelectorAll('section[id], div[id]');
+  const links    = document.querySelectorAll('.toc-link');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.toc-link[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

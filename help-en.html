@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Help — Work Journal</title>
+  <style>
+    @font-face {
+      font-family: 'AppMono';
+      src: url('fonts/LiberationMono-Regular.ttf') format('truetype');
+      font-weight: 400; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'AppMono';
+      src: url('fonts/LiberationMono-Bold.ttf') format('truetype');
+      font-weight: 700; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'AppDisplay';
+      src: url('fonts/LiberationSans-Regular.ttf') format('truetype');
+      font-weight: 400; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'AppDisplay';
+      src: url('fonts/LiberationSans-Bold.ttf') format('truetype');
+      font-weight: 700; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'AppDisplay';
+      src: url('fonts/LiberationSans-Italic.ttf') format('truetype');
+      font-weight: 400; font-style: italic; font-display: block;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e0f11; --surface: #16181c; --surface2: #1e2128; --border: #2a2d35;
+      --accent: #f0c040; --accent2: #e07020; --text: #d8dae0; --muted: #6b7080;
+      --dim: #3a3f4a; --success: #40c080; --danger: #e04040;
+      --mono: 'AppMono','Liberation Mono',monospace;
+      --display: 'AppDisplay','Liberation Sans',Arial,sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--display); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+    .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar { background: var(--surface); border-right: 1px solid var(--border); position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+    .sidebar-logo { padding: 20px 20px 16px; border-bottom: 1px solid var(--border); }
+    .logo-text { font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--accent); letter-spacing: 0.05em; }
+    .logo-text span { color: var(--accent2); }
+    .logo-sub { font-size: 11px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+    .toc { padding: 12px 0; flex: 1; }
+    .toc-section-label { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); padding: 10px 16px 4px; font-family: var(--mono); }
+    .toc-link { display: flex; align-items: center; gap: 8px; padding: 7px 16px; color: var(--muted); text-decoration: none; font-size: 12px; transition: all 0.15s; border-left: 2px solid transparent; }
+    .toc-link:hover { background: var(--surface2); color: var(--text); border-left-color: var(--dim); }
+    .toc-link.active { background: rgba(240,192,64,0.08); color: var(--accent); border-left-color: var(--accent); }
+    .toc-icon { font-size: 14px; flex-shrink: 0; }
+    .sidebar-back { padding: 14px 16px; border-top: 1px solid var(--border); }
+    .back-btn { display: flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; font-size: 12px; font-family: var(--mono); padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border); transition: all 0.15s; }
+    .back-btn:hover { background: var(--surface2); color: var(--text); }
+
+    /* CONTENT */
+    .content { padding: 40px 48px 80px; max-width: 860px; }
+    .hero { margin-bottom: 48px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+    .hero-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+    .hero-title { font-size: 32px; font-weight: 700; color: var(--text); line-height: 1.2; margin-bottom: 12px; }
+    .hero-title span { color: var(--accent); }
+    .hero-desc { font-size: 15px; color: var(--muted); max-width: 560px; line-height: 1.7; }
+    .version-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 16px; }
+    .version-badge .dot { color: var(--success); }
+
+    /* SECTIONS */
+    .section { margin-bottom: 56px; scroll-margin-top: 24px; }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section-icon { width: 36px; height: 36px; background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .section-title { font-size: 20px; font-weight: 700; color: var(--text); }
+    .section-id { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-left: auto; }
+
+    /* CARDS */
+    .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; transition: border-color 0.15s; }
+    .feature-card:hover { border-color: #3a3f4a; }
+    .feature-card-icon { font-size: 22px; margin-bottom: 8px; }
+    .feature-card-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .feature-card-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+    /* STEPS */
+    .steps { display: flex; flex-direction: column; gap: 12px; }
+    .step { display: flex; gap: 14px; align-items: flex-start; }
+    .step-num { flex-shrink: 0; width: 26px; height: 26px; background: var(--accent); color: #0e0f11; border-radius: 50%; font-weight: 700; font-size: 12px; font-family: var(--mono); display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+    .step-body { flex: 1; }
+    .step-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+    .step-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+    /* INFO BLOCKS */
+    .info-block { border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; display: flex; gap: 12px; font-size: 13px; line-height: 1.6; }
+    .info-block-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .info-tip { background: rgba(240,192,64,0.08); border: 1px solid rgba(240,192,64,0.2); color: var(--text); }
+    .info-note { background: rgba(64,192,128,0.08); border: 1px solid rgba(64,192,128,0.2); color: var(--text); }
+    .info-warn { background: rgba(224,64,64,0.08); border: 1px solid rgba(224,64,64,0.2); color: var(--text); }
+
+    /* TABLES */
+    .shortcut-table, .field-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+    .shortcut-table th, .field-table th { text-align: left; padding: 8px 12px; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); font-family: var(--mono); border-bottom: 2px solid var(--border); background: var(--surface2); }
+    .shortcut-table td, .field-table td { padding: 10px 12px; border-bottom: 1px solid rgba(42,45,53,0.6); vertical-align: top; line-height: 1.5; color: var(--muted); }
+    .shortcut-table tr:last-child td, .field-table tr:last-child td { border-bottom: none; }
+    .shortcut-table tr:hover td, .field-table tr:hover td { background: rgba(30,33,40,0.5); }
+    .field-name { font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 700; white-space: nowrap; }
+    .field-required { color: var(--danger); font-size: 10px; margin-left: 4px; }
+
+    kbd { display: inline-flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 2px 7px; font-family: var(--mono); font-size: 11px; color: var(--text); white-space: nowrap; }
+    code { font-family: var(--mono); font-size: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent); }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+    .badge-auto { background: rgba(224,64,64,0.12); color: #ff8080; border: 1px solid rgba(224,64,64,0.25); }
+    .badge-manual { background: rgba(64,192,128,0.12); color: var(--success); border: 1px solid rgba(64,192,128,0.25); }
+    .badge-import { background: rgba(240,192,64,0.12); color: var(--accent); border: 1px solid rgba(240,192,64,0.25); }
+    p { color: var(--muted); margin-bottom: 12px; line-height: 1.7; font-size: 13px; }
+    p:last-child { margin-bottom: 0; }
+    strong { color: var(--text); font-weight: 700; }
+    ul.prose-list { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    ul.prose-list li { padding-left: 16px; position: relative; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    ul.prose-list li::before { content: '—'; position: absolute; left: 0; color: var(--dim); }
+    .divider { height: 1px; background: var(--border); margin: 24px 0; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    a.btn { text-decoration: none; }
+    @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; height: auto; } .content { padding: 24px 20px 48px; } .feature-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">WORK<span>.</span>LOG</div>
+      <div class="logo-sub">User Manual</div>
+    </div>
+    <nav class="toc">
+      <div class="toc-section-label">Sections</div>
+      <a href="#overview"   class="toc-link active"><span class="toc-icon">🏠</span> Overview</a>
+      <a href="#start"      class="toc-link"><span class="toc-icon">🚀</span> Quick Start</a>
+      <a href="#journal"    class="toc-link"><span class="toc-icon">📋</span> Journal</a>
+      <a href="#entry-form" class="toc-link"><span class="toc-icon">✏️</span> Entry Form</a>
+      <a href="#photos"     class="toc-link"><span class="toc-icon">📷</span> Photos</a>
+      <a href="#view"       class="toc-link"><span class="toc-icon">👁</span> Entry Details</a>
+      <a href="#categories" class="toc-link"><span class="toc-icon">🏷</span> Categories</a>
+      <a href="#reports"    class="toc-link"><span class="toc-icon">📊</span> Reports</a>
+      <a href="#archive"    class="toc-link"><span class="toc-icon">🗄</span> Archive</a>
+      <a href="#transfer"   class="toc-link"><span class="toc-icon">💾</span> Data Transfer</a>
+      <a href="#settings"   class="toc-link"><span class="toc-icon">⚙</span> Settings</a>
+      <a href="#shortcuts"  class="toc-link"><span class="toc-icon">⌨</span> Shortcuts</a>
+    </nav>
+    <div class="sidebar-back">
+      <a href="index.html" class="back-btn">← Back to Journal</a>
+    </div>
+  </aside>
+
+  <main class="content">
+
+    <div class="hero" id="overview">
+      <div class="hero-eyebrow">User Manual</div>
+      <div class="hero-title">Work <span>Journal</span></div>
+      <div class="hero-desc">A tool for daily logging of completed work. Stores entries, photos, categories and change history — fully locally, with no internet connection required.</div>
+      <div class="version-badge"><span class="dot">●</span> v1.1 &nbsp;·&nbsp; Fully offline</div>
+    </div>
+
+    <section class="section" id="start">
+      <div class="section-header"><div class="section-icon">🚀</div><div class="section-title">Quick Start</div><div class="section-id">#start</div></div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Start the server</div><div class="step-desc">Open a terminal in the project folder and run <code>node server.js</code>. Requires Node.js 16+. No internet needed.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Open your browser</div><div class="step-desc">Navigate to <code>http://localhost:3000</code>. Use Chrome, Firefox, Edge or any modern browser.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Create categories</div><div class="step-desc">Go to the <strong>Categories</strong> section and add your work groups (e.g. Electrical, Plumbing, Roofing). Optional, but useful.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Add your first entry</div><div class="step-desc">Click <strong>+ New Entry</strong> in the Journal section, fill in the fields and save. The database is stored directly in the browser.</div></div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="info-note info-block"><span class="info-block-icon">🔒</span><div><strong>Fully offline.</strong> The application makes zero requests to the internet. All data (entries, categories, photos, fonts) is stored and processed exclusively on your computer.</div></div>
+    </section>
+
+    <section class="section" id="journal">
+      <div class="section-header"><div class="section-icon">📋</div><div class="section-title">Journal</div><div class="section-id">#journal</div></div>
+      <p>The main page of the application. Shows all entries in reverse chronological order — newest first.</p>
+      <div class="feature-grid">
+        <div class="feature-card"><div class="feature-card-icon">🔍</div><div class="feature-card-title">Search</div><div class="feature-card-desc">Full-text search across work description, performed actions and category name. Matches are highlighted directly in the cards.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">🏷</div><div class="feature-card-title">Category Filter</div><div class="feature-card-desc">Select a category from the dropdown — the journal instantly shows only entries from that category.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">📅</div><div class="feature-card-title">Date Range Filter</div><div class="feature-card-desc">Set a start and end date to see entries for a specific period. Filters can be combined freely.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">✕</div><div class="feature-card-title">Reset Filters</div><div class="feature-card-desc">The «Reset» button instantly clears all active filters and restores the full entry list.</div></div>
+      </div>
+      <p>Each journal card shows the date, category, work description, a summary of actions performed, and photo thumbnails (if any). Card action buttons appear on hover.</p>
+    </section>
+
+    <section class="section" id="entry-form">
+      <div class="section-header"><div class="section-icon">✏️</div><div class="section-title">Entry Form</div><div class="section-id">#entry-form</div></div>
+      <p>The create/edit form opens in a modal window. All fields are available at once without switching tabs.</p>
+      <table class="field-table">
+        <thead><tr><th style="width:200px">Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="field-name">Date</span><span class="field-required">*</span></td><td>Date the work was performed. Automatically filled with today's date when creating a new entry.</td></tr>
+          <tr><td><span class="field-name">Category</span></td><td>Optional. Select from the list of pre-created categories. Helps filter and group entries in reports.</td></tr>
+          <tr><td><span class="field-name">Work Description</span><span class="field-required">*</span></td><td>A short name for the task or object — shown as the card heading. E.g.: "Meter replacement", "Roof repair section 3".</td></tr>
+          <tr><td><span class="field-name">Actions Performed</span></td><td>Detailed description of what was done. Supports multi-line input. Shown in the card and in reports.</td></tr>
+          <tr><td><span class="field-name">Parts / Materials</span></td><td>Dynamic list of items. Each row has a name and quantity. The «+ add item» button adds a new row. Remove a row with the ✕ button.</td></tr>
+          <tr><td><span class="field-name">Photos</span></td><td>Up to 10 photos per entry. Formats: JPEG, PNG, GIF, WebP. Max file size: 10 MB. See the Photos section for details.</td></tr>
+        </tbody>
+      </table>
+      <div class="info-tip info-block"><span class="info-block-icon">💡</span><div>Fields marked <strong style="color:#e04040">*</strong> are required. You cannot save without them — a hint will appear.</div></div>
+      <div class="info-tip info-block"><span class="info-block-icon">⌨</span><div>Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to save quickly, <kbd>Esc</kbd> to cancel and close the form.</div></div>
+    </section>
+
+    <section class="section" id="photos">
+      <div class="section-header"><div class="section-icon">📷</div><div class="section-title">Photos</div><div class="section-id">#photos</div></div>
+      <p>Up to <strong>10 photos</strong> can be attached to each entry. Files are stored in the <code>photos/</code> folder inside the project on disk — not in the browser database.</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Open the entry form</div><div class="step-desc">Create a new entry or click ✎ on an existing one.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Click the photo add button</div><div class="step-desc">At the bottom of the form — the «Photos» section with a dashed-border button. You can select multiple files at once.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Wait for upload</div><div class="step-desc">Photos upload to the local server and appear as thumbnails immediately. You can add them one by one or several at once.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Save the entry</div><div class="step-desc">Photos are linked to the entry when saved. If you click «Cancel», any newly uploaded photos are automatically deleted.</div></div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="feature-grid">
+        <div class="feature-card"><div class="feature-card-icon">🗑</div><div class="feature-card-title">Removing photos</div><div class="feature-card-desc">Hover over a thumbnail — a ✕ button appears. The deleted photo is marked; the file is removed from disk when the entry is saved.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">🔍</div><div class="feature-card-title">Full-screen view</div><div class="feature-card-desc">Click any thumbnail to open a lightbox. Navigate with arrow buttons or ← → keys. Close with Esc or click the background.</div></div>
+      </div>
+      <div class="info-warn info-block"><span class="info-block-icon">⚠</span><div>When moving to another computer, always copy the <code>photos/</code> folder along with the rest of the project. Without it, photos in entries will not display.</div></div>
+    </section>
+
+    <section class="section" id="view">
+      <div class="section-header"><div class="section-icon">👁</div><div class="section-title">Entry Details</div><div class="section-id">#view</div></div>
+      <p>The <strong>«👁 Details»</strong> button on a journal card opens a full-screen modal with the complete entry content.</p>
+      <ul class="prose-list">
+        <li>Date, category and entry heading</li>
+        <li>Full text of actions performed</li>
+        <li>Parts and materials list with quantities</li>
+        <li>Photo grid with lightbox support</li>
+        <li><strong>«Edit»</strong> button — jumps directly to edit mode</li>
+      </ul>
+      <div class="info-tip info-block"><span class="info-block-icon">💡</span><div>Card action buttons (<strong>Details</strong>, edit, delete) appear when you hover over the card.</div></div>
+    </section>
+
+    <section class="section" id="categories">
+      <div class="section-header"><div class="section-icon">🏷</div><div class="section-title">Categories</div><div class="section-id">#categories</div></div>
+      <p>Categories help group entries by type of work. It is recommended to create categories before starting to use the journal.</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Go to «Categories»</div><div class="step-desc">Click in the left sidebar.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Click «+ Add»</div><div class="step-desc">Enter a category name. Examples: Electrical, Plumbing, Roofing, HVAC, Low-voltage.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Use when creating entries</div><div class="step-desc">The category will appear in the dropdown in the new entry form and in journal filters.</div></div></div>
+      </div>
+      <div class="info-tip info-block"><span class="info-block-icon">💡</span><div>Each category card shows an entry count. When a category is deleted — entries are not deleted, only their «category» field is cleared.</div></div>
+    </section>
+
+    <section class="section" id="reports">
+      <div class="section-header"><div class="section-icon">📊</div><div class="section-title">Reports</div><div class="section-id">#reports</div></div>
+      <p>The report section lets you generate printable documents about completed work for a selected period.</p>
+      <div class="feature-grid">
+        <div class="feature-card"><div class="feature-card-icon">⚡</div><div class="feature-card-title">Quick Periods</div><div class="feature-card-desc">Four buttons for instant period selection: this week, this month, this quarter, this year.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">🗓</div><div class="feature-card-title">Custom Period</div><div class="feature-card-desc">Set any start and end dates manually. The preview updates instantly.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">🏷</div><div class="feature-card-title">Category Filter</div><div class="feature-card-desc">Generate a report for a single category or all at once.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">🖨</div><div class="feature-card-title">Print / PDF</div><div class="feature-card-desc">The «Print» button opens the ready document. In the browser print dialog, select «Save as PDF» instead of a printer.</div></div>
+      </div>
+      <p>In the report, entries are grouped by date. For each entry: description, category, actions performed and materials list are shown. Photos are not included in reports.</p>
+      <div class="info-tip info-block"><span class="info-block-icon">💡</span><div>When opening the Reports section, the <strong>current month</strong> is automatically selected and a preview is shown immediately.</div></div>
+    </section>
+
+    <section class="section" id="archive">
+      <div class="section-header"><div class="section-icon">🗄</div><div class="section-title">Snapshot Archive</div><div class="section-id">#archive</div></div>
+      <p>An automatic backup system for the database. Snapshots are created automatically in critical situations and manually on demand. Each snapshot contains a full copy of all entries and categories.</p>
+      <table class="field-table">
+        <thead><tr><th>Snapshot type</th><th>When created</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-auto">Before clear</span></td><td>Automatically when clicking «Clear all data» in settings — before deletion.</td></tr>
+          <tr><td><span class="badge badge-import">Before import</span></td><td>Automatically when loading a JSON file — before existing data is replaced.</td></tr>
+          <tr><td><span class="badge badge-import">Before restore</span></td><td>Automatically when restoring from another snapshot — current state is saved first.</td></tr>
+          <tr><td><span class="badge badge-manual">Manual snapshot</span></td><td>Via the «📷 Create snapshot» button on the archive page — at any time.</td></tr>
+        </tbody>
+      </table>
+      <div class="feature-grid">
+        <div class="feature-card"><div class="feature-card-icon">↺</div><div class="feature-card-title">Restore</div><div class="feature-card-desc">The «↺ Restore» button replaces the current database with data from the snapshot. The current state is automatically saved first.</div></div>
+        <div class="feature-card"><div class="feature-card-icon">↓</div><div class="feature-card-title">Download snapshot</div><div class="feature-card-desc">Any snapshot can be downloaded as a JSON file and transferred to another computer via Import.</div></div>
+      </div>
+      <div class="info-note info-block"><span class="info-block-icon">ℹ</span><div>Up to <strong>30 snapshots</strong> are stored. When the limit is exceeded, the oldest snapshot is deleted automatically. Snapshots do not include photos — only text entry data.</div></div>
+    </section>
+
+    <section class="section" id="transfer">
+      <div class="section-header"><div class="section-icon">💾</div><div class="section-title">Data Transfer</div><div class="section-id">#transfer</div></div>
+      <p>Data is stored in two places: text data — in the browser's IndexedDB, photos — in the <code>photos/</code> folder on disk. A full transfer requires moving both.</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Export the database</div><div class="step-desc">Click «↑ Export» in the top bar or in Settings. A file <code>work-journal-DATE.json</code> will download.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Copy the photos/ folder</div><div class="step-desc">Copy the entire <code>photos/</code> folder from the project. It contains all uploaded photos.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Start the server on the new computer</div><div class="step-desc">Copy the whole project, place the <code>photos/</code> folder in position, run <code>node server.js</code>.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Import the JSON</div><div class="step-desc">Click «↓ Import» and select the saved JSON file. All entries and categories will be restored.</div></div></div>
+      </div>
+      <div class="info-tip info-block"><span class="info-block-icon">💡</span><div><strong>Easiest transfer method</strong> — copy the entire project folder. Copy the IndexedDB and <code>photos/</code> folder with data, otherwise some information will be lost.</div></div>
+    </section>
+
+    <section class="section" id="settings">
+      <div class="section-header"><div class="section-icon">⚙</div><div class="section-title">Settings</div><div class="section-id">#settings</div></div>
+      <table class="field-table">
+        <thead><tr><th style="width:200px">Setting</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="field-name">Interface Language</span></td><td>Switch between Russian, English and Polish. Affects only the UI — data (entries, categories) is not affected. The selection is saved between sessions.</td></tr>
+          <tr><td><span class="field-name">Export Database</span></td><td>Download all entries and categories as a JSON file. Used for backup and transfer to another computer.</td></tr>
+          <tr><td><span class="field-name">Import Database</span></td><td>Load data from a JSON file. <strong>Warning:</strong> current data will be replaced. A snapshot is automatically created before import.</td></tr>
+          <tr><td><span class="field-name">Clear All Data</span></td><td>Deletes all entries and categories from the browser database. <strong>Warning:</strong> a snapshot is automatically created before clearing. Photos in the <code>photos/</code> folder are not deleted.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section" id="shortcuts">
+      <div class="section-header"><div class="section-icon">⌨</div><div class="section-title">Keyboard Shortcuts</div><div class="section-id">#shortcuts</div></div>
+      <table class="shortcut-table">
+        <thead><tr><th style="width:220px">Keys</th><th>Action</th><th>Context</th></tr></thead>
+        <tbody>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td><td>Save entry / category</td><td>Open form</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Close modal window / lightbox</td><td>Any window</td></tr>
+          <tr><td><kbd>→</kbd></td><td>Next photo</td><td>Lightbox</td></tr>
+          <tr><td><kbd>←</kbd></td><td>Previous photo</td><td>Lightbox</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+<script>
+  const sections = document.querySelectorAll('section[id], div[id]');
+  const links = document.querySelectorAll('.toc-link');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.toc-link[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
