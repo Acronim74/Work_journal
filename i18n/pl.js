@@ -393,6 +393,7 @@ LANG_PL.inv_err_no_active_templates = 'Brak aktywnych szablonów — utwórz naj
 LANG_PL.inv_err_field_required = 'Pole wymagane:';
 LANG_PL.inv_err_popup_blocked = 'Zezwól na wyskakujące okna, aby drukować';
 LANG_PL.inv_toast_template_saved = 'Szablon zapisany';
+LANG_PL.inv_toast_template_sync_failed = 'Szablon zapisany, ale powiązane spisy nie zostały zaktualizowane (zob. konsolę)';
 LANG_PL.inv_toast_template_archived = 'Szablon w archiwum';
 LANG_PL.inv_toast_template_restored = 'Szablon przywrócony';
 LANG_PL.inv_toast_record_created = 'Spis utworzony';

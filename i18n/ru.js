@@ -408,6 +408,7 @@ LANG_RU.inv_err_no_active_templates = 'Нет активных шаблонов 
 LANG_RU.inv_err_field_required = 'Обязательное поле:';
 LANG_RU.inv_err_popup_blocked = 'Откройте всплывающие окна для печати';
 LANG_RU.inv_toast_template_saved = 'Шаблон сохранён';
+LANG_RU.inv_toast_template_sync_failed = 'Шаблон сохранён, но не удалось обновить связанные описи (см. консоль)';
 LANG_RU.inv_toast_template_archived = 'Шаблон в архиве';
 LANG_RU.inv_toast_template_restored = 'Шаблон восстановлен';
 LANG_RU.inv_toast_record_created = 'Опись создана';

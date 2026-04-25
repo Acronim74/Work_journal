@@ -29,6 +29,71 @@ function invDefaultEmptyValue(field) {
   return '';
 }
 
+/** Нормализация полей шаблона/снимка: убрать битые записи, гарантировать key и label */
+function invNormalizeTemplateFields(fields) {
+  if (!Array.isArray(fields)) return [];
+  const out = [];
+  for (const f of fields) {
+    if (!f) continue;
+    const key = String(f.key || '').trim();
+    if (!key) continue;
+    const type = INV_FIELD_TYPES.includes(f.type) ? f.type : 'text';
+    let label = String(f.label || f.name || '').trim();
+    if (!label) label = key;
+    const base = { key, label, type, required: !!f.required };
+    if (type === 'select') {
+      base.options = Array.isArray(f.options) ? f.options.filter(Boolean) : [];
+    }
+    if (type === 'number') {
+      base.unit = f.unit != null ? String(f.unit) : '';
+    }
+    out.push(base);
+  }
+  return out;
+}
+
+/**
+ * Подмешать актуальную структуру шаблона в снимок описи: новые поля в конец,
+ * существующие по key — обновить подпись/тип; поля, удалённые из шаблона, в описи оставляем.
+ */
+function invMergeRecordSnapshotWithTemplate(snapshotFields, templateFields) {
+  const snap = invNormalizeTemplateFields(snapshotFields);
+  const tpl  = invNormalizeTemplateFields(templateFields);
+  if (tpl.length === 0) return snap;
+  const tplByKey = new Map(tpl.map(f => [f.key, f]));
+  const merged = snap.map(f => {
+    const t = tplByKey.get(f.key);
+    return t ? { ...f, ...t, key: f.key } : { ...f };
+  });
+  const seen = new Set(snap.map(f => f.key));
+  for (const t of tpl) {
+    if (!seen.has(t.key)) {
+      merged.push({ ...t });
+      seen.add(t.key);
+    }
+  }
+  return merged;
+}
+
+function invGetRecordFields(rec) {
+  return invNormalizeTemplateFields(rec?.templateSnapshot?.fields || []);
+}
+
+async function syncInventoryRecordsAfterTemplateSave(templateId, templateFields) {
+  const tplRows = invNormalizeTemplateFields(templateFields);
+  const all = await dbGetAllInventoryRecords();
+  const now = invNowIso();
+  for (const rec of all) {
+    if (rec.templateId !== templateId) continue;
+    const prev = invNormalizeTemplateFields(rec.templateSnapshot?.fields || []);
+    const merged = invMergeRecordSnapshotWithTemplate(prev, tplRows);
+    if (JSON.stringify(prev) === JSON.stringify(merged)) continue;
+    rec.templateSnapshot = { ...(rec.templateSnapshot || {}), fields: merged };
+    rec.updatedAt = now;
+    await dbPutInventoryRecord(rec);
+  }
+}
+
 /* ---------- Утилиты ---------- */
 
 function invEsc(s) { return (typeof esc === 'function') ? esc(s) : String(s ?? ''); }
@@ -247,14 +312,14 @@ async function saveInventoryTemplateModal() {
   const fields = (invTplEditing.fields || []).filter(f => (f.label || '').trim());
   if (fields.length === 0) { invToast(L.inv_err_template_fields_required || 'Добавьте хотя бы одно поле', 'error'); return; }
 
-  const cleanFields = fields.map(f => ({
+  const cleanFields = invNormalizeTemplateFields(fields.map(f => ({
     key: f.key || invUuid(),
     label: f.label.trim(),
     type: INV_FIELD_TYPES.includes(f.type) ? f.type : 'text',
     options: (f.type === 'select') ? (Array.isArray(f.options) ? f.options.filter(Boolean) : []) : undefined,
     unit:    (f.type === 'number') ? (f.unit || '') : undefined,
     required: !!f.required,
-  }));
+  })));
 
   const now = invNowIso();
   if (invTplEditing.id) {
@@ -269,6 +334,12 @@ async function saveInventoryTemplateModal() {
       createdAt: existing?.createdAt || now,
     };
     await dbPutInventoryTemplate(updated);
+    try {
+      await syncInventoryRecordsAfterTemplateSave(invTplEditing.id, cleanFields);
+    } catch (e) {
+      console.error('[syncInventoryRecordsAfterTemplateSave]', e);
+      invToast(L.inv_toast_template_sync_failed || 'Шаблон сохранён, но не удалось обновить связанные описи', 'error');
+    }
   } else {
     await dbAddInventoryTemplate({
       name, desc,
@@ -283,6 +354,9 @@ async function saveInventoryTemplateModal() {
   invToast(L.inv_toast_template_saved || 'Шаблон сохранён', 'success');
   invScheduleSave();
   await renderInventoryTemplatesPage();
+  if (typeof currentPage !== 'undefined' && currentPage === 'inventory' && typeof renderInventoryPage === 'function') {
+    await renderInventoryPage();
+  }
 }
 
 async function archiveInventoryTemplate(id) {
@@ -485,7 +559,7 @@ async function renderInventoryRecordDetail(id) {
     detail.innerHTML = `<div class="empty-state"><div class="empty-state-title">${invEsc(L.inv_record_not_found || 'Опись не найдена')}</div></div>`;
     return;
   }
-  const fields = (rec.templateSnapshot?.fields) || [];
+  const fields = invGetRecordFields(rec);
   const items  = Array.isArray(rec.items) ? rec.items : [];
   const search = (document.getElementById('invItemSearch')?.value || '').toLowerCase().trim();
 
@@ -494,7 +568,7 @@ async function renderInventoryRecordDetail(id) {
     visibleItems = visibleItems.filter(it => {
       return fields.some(f => {
         const v = invItemValueText(it, f);
-        return v && v.toLowerCase().includes(search);
+        return v && String(v).toLowerCase().includes(search);
       });
     });
   }
@@ -580,9 +654,9 @@ let invItemEditing = null; // { recordId, itemId|null, values:{}, _origValues:{}
 async function openInventoryItemAdd(recordId) {
   const rec = await dbGetInventoryRecord(recordId);
   if (!rec) return;
-  const fields = rec.templateSnapshot?.fields || [];
+  const fields = invGetRecordFields(rec);
   const initial = {};
-  fields.forEach(f => { initial[f.key] = invDefaultEmptyValue(f); });
+  fields.forEach(f => { if (f.key) initial[f.key] = invDefaultEmptyValue(f); });
   invItemEditing = {
     recordId,
     itemId: null,
@@ -597,11 +671,18 @@ async function openInventoryItemEdit(recordId, itemId) {
   if (!rec) return;
   const it = (rec.items || []).find(x => String(x.id) === String(itemId));
   if (!it) return;
+  const fields = invGetRecordFields(rec);
+  const diskVals = { ...(it.values || {}) };
+  const values = { ...diskVals };
+  fields.forEach(f => {
+    if (!f.key) return;
+    if (!(f.key in values)) values[f.key] = invDefaultEmptyValue(f);
+  });
   invItemEditing = {
     recordId,
     itemId: it.id,
-    values: { ...(it.values || {}) },
-    _origValues: { ...(it.values || {}) },
+    values,
+    _origValues: diskVals,
   };
   showInventoryItemModal(rec, false);
 }
@@ -613,14 +694,14 @@ function showInventoryItemModal(rec, isNew) {
     : (L.inv_modal_item_edit_title || 'Редактирование позиции');
 
   const body = document.getElementById('invItemFormBody');
-  const fields = rec.templateSnapshot?.fields || [];
+  const fields = invGetRecordFields(rec);
   body.innerHTML = `<div class="form-grid">${fields.map(f => renderInventoryItemFieldInput(f)).join('')}</div>`;
   document.getElementById('invItemModal')?.classList.add('open');
   setTimeout(() => body.querySelector('input,select,textarea')?.focus(), 50);
 }
 
 function renderInventoryItemFieldInput(field) {
-  const id = `invItemFld_${field.key}`;
+  const id = `invItemFld_${field.key.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
   const val = invItemEditing?.values?.[field.key];
   const req = field.required ? '<span class="required"> *</span>' : '';
   const labelHtml = `<span>${invEsc(field.label)}${field.type === 'number' && field.unit ? ` <span style="color:var(--text-dim);">(${invEsc(field.unit)})</span>` : ''}</span>${req}`;
@@ -628,27 +709,32 @@ function renderInventoryItemFieldInput(field) {
   switch (field.type) {
     case 'number':
       inputHtml = `<input type="number" step="any" class="form-input" id="${id}" value="${val == null ? '' : invEsc(val)}"
-                          oninput="onInventoryItemFieldChange('${field.key}', this.value, 'number')">`;
+                          data-inv-key="${invEsc(field.key)}"
+                          oninput="onInventoryItemFieldChange(this.dataset.invKey, this.value, 'number')">`;
       break;
     case 'select': {
       const opts = ['<option value=""></option>'].concat(
         (field.options || []).map(o => `<option value="${invEsc(o)}" ${String(val || '') === String(o) ? 'selected' : ''}>${invEsc(o)}</option>`)
       ).join('');
-      inputHtml = `<select class="form-select" id="${id}" onchange="onInventoryItemFieldChange('${field.key}', this.value, 'select')">${opts}</select>`;
+      inputHtml = `<select class="form-select" id="${id}" data-inv-key="${invEsc(field.key)}"
+                          onchange="onInventoryItemFieldChange(this.dataset.invKey, this.value, 'select')">${opts}</select>`;
       break;
     }
     case 'date':
       inputHtml = `<input type="date" class="form-input" id="${id}" value="${invEsc(val || '')}"
-                          onchange="onInventoryItemFieldChange('${field.key}', this.value, 'date')">`;
+                          data-inv-key="${invEsc(field.key)}"
+                          onchange="onInventoryItemFieldChange(this.dataset.invKey, this.value, 'date')">`;
       break;
     case 'boolean':
       inputHtml = `<label class="checkbox-row"><input type="checkbox" id="${id}" ${val ? 'checked' : ''}
-                          onchange="onInventoryItemFieldChange('${field.key}', this.checked, 'boolean')"><span>${invEsc(L.inv_yes || 'Да')}</span></label>`;
+                          data-inv-key="${invEsc(field.key)}"
+                          onchange="onInventoryItemFieldChange(this.dataset.invKey, this.checked, 'boolean')"><span>${invEsc(L.inv_yes || 'Да')}</span></label>`;
       break;
     case 'text':
     default:
       inputHtml = `<input type="text" class="form-input" id="${id}" value="${invEsc(val || '')}"
-                          oninput="onInventoryItemFieldChange('${field.key}', this.value, 'text')">`;
+                          data-inv-key="${invEsc(field.key)}"
+                          oninput="onInventoryItemFieldChange(this.dataset.invKey, this.value, 'text')">`;
   }
   return `<div class="form-group full"><label class="form-label">${labelHtml}</label>${inputHtml}</div>`;
 }
@@ -674,7 +760,7 @@ async function saveInventoryItemModal() {
   if (!invItemEditing) return;
   const rec = await dbGetInventoryRecord(invItemEditing.recordId);
   if (!rec) { closeInventoryItemModal(); return; }
-  const fields = rec.templateSnapshot?.fields || [];
+  const fields = invGetRecordFields(rec);
 
   // required check
   for (const f of fields) {
@@ -692,7 +778,8 @@ async function saveInventoryItemModal() {
   if (isEdit) {
     const sensitiveChange = fields.some(f => {
       if (f.type !== 'number' && f.type !== 'text') return false;
-      const oldV = invItemEditing._origValues?.[f.key];
+      if (!Object.prototype.hasOwnProperty.call(invItemEditing._origValues, f.key)) return false;
+      const oldV = invItemEditing._origValues[f.key];
       const newV = invItemEditing.values[f.key];
       return String(oldV ?? '') !== String(newV ?? '');
     });
@@ -743,7 +830,7 @@ async function deleteInventoryItem(recordId, itemId) {
 async function printInventoryRecord(id) {
   const rec = await dbGetInventoryRecord(id);
   if (!rec) return;
-  const fields = rec.templateSnapshot?.fields || [];
+  const fields = invGetRecordFields(rec);
   const items  = Array.isArray(rec.items) ? rec.items : [];
 
   const headers = fields.map(f => `<th>${invEsc(f.label)}${f.type === 'number' && f.unit ? ` (${invEsc(f.unit)})` : ''}</th>`).join('');

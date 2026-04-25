@@ -393,6 +393,7 @@ LANG_EN.inv_err_no_active_templates = 'No active templates — create one first'
 LANG_EN.inv_err_field_required = 'Required field:';
 LANG_EN.inv_err_popup_blocked = 'Allow pop-ups to print';
 LANG_EN.inv_toast_template_saved = 'Template saved';
+LANG_EN.inv_toast_template_sync_failed = 'Template saved, but linked records could not be updated (see console)';
 LANG_EN.inv_toast_template_archived = 'Template archived';
 LANG_EN.inv_toast_template_restored = 'Template restored';
 LANG_EN.inv_toast_record_created = 'Record created';
