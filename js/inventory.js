@@ -5,7 +5,9 @@
    ============================================================ */
 
 /* ---------- Поля шаблона ---------- */
-const INV_FIELD_TYPES = ['text', 'number', 'select', 'date', 'boolean'];
+const INV_FIELD_TYPES = ['text', 'number', 'select', 'date', 'boolean', 'multi_select', 'composite'];
+
+const INV_DICT_SLUG = { STORAGE: 'storageLocations', UNITS: 'units' };
 
 function invUuid() {
   return 'f_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
@@ -13,20 +15,105 @@ function invUuid() {
 
 function invFieldTypeLabel(type) {
   const map = {
-    text:    L.inv_field_type_text    || 'Текст',
-    number:  L.inv_field_type_number  || 'Число',
-    select:  L.inv_field_type_select  || 'Список',
-    date:    L.inv_field_type_date    || 'Дата',
-    boolean: L.inv_field_type_boolean || 'Да/Нет',
+    text:         L.inv_field_type_text          || 'Текст',
+    number:       L.inv_field_type_number        || 'Число',
+    select:       L.inv_field_type_select        || 'Список',
+    date:         L.inv_field_type_date          || 'Дата',
+    boolean:      L.inv_field_type_boolean       || 'Да/Нет',
+    multi_select: L.inv_field_type_multi_select  || 'Несколько из списка',
+    composite:    L.inv_field_type_composite     || 'Составной номер',
   };
   return map[type] || type;
 }
 
+function invDictTitle(slug) {
+  if (slug === INV_DICT_SLUG.STORAGE) return L.inv_dict_title_storage || 'Места хранения';
+  if (slug === INV_DICT_SLUG.UNITS) return L.inv_dict_title_units || 'Единицы измерения';
+  return slug;
+}
+
 function invDefaultEmptyValue(field) {
   if (!field) return '';
-  if (field.type === 'number')  return null;
+  if (field.type === 'multi_select') return [];
+  if (field.type === 'composite') {
+    const n = Math.max(2, (field.compositeParts || []).length || 2);
+    return Array(n).fill('');
+  }
+  if (field.type === 'number') {
+    if (field.unitMode === 'dictionary') return { amount: null, unit: '' };
+    return null;
+  }
   if (field.type === 'boolean') return false;
   return '';
+}
+
+async function invLoadDictionariesMap() {
+  const all = await dbGetAllDictionaries();
+  const m = {};
+  for (const d of all) {
+    if (d && d.slug) m[d.slug] = Array.isArray(d.values) ? d.values.filter(Boolean) : [];
+  }
+  return m;
+}
+
+function invFieldOptionList(field, dictMap) {
+  if (!field) return [];
+  if (field.type === 'select' || field.type === 'multi_select') {
+    if (field.selectSource === 'dictionary' && field.dictionarySlug) {
+      const slug = field.dictionarySlug;
+      return (dictMap && dictMap[slug]) ? dictMap[slug].slice() : [];
+    }
+    return Array.isArray(field.options) ? field.options.filter(Boolean) : [];
+  }
+  if (field.type === 'number' && field.unitMode === 'dictionary') {
+    const slug = field.dictionarySlug || INV_DICT_SLUG.UNITS;
+    return (dictMap && dictMap[slug]) ? dictMap[slug].slice() : [];
+  }
+  return [];
+}
+
+function invCompositeToArray(field, raw) {
+  const n = Math.max(2, (field.compositeParts || []).length || 2);
+  const out = Array(n).fill('');
+  if (Array.isArray(raw)) {
+    for (let i = 0; i < n; i++) out[i] = raw[i] != null ? String(raw[i]) : '';
+    return out;
+  }
+  if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) {
+    const keys = Object.keys(raw).sort();
+    for (let i = 0; i < n && i < keys.length; i++) out[i] = String(raw[keys[i]] ?? '');
+    return out;
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    const sep = field.compositeSeparator || '-';
+    const p = raw.split(sep);
+    for (let i = 0; i < n && i < p.length; i++) out[i] = p[i].trim();
+  }
+  return out;
+}
+
+function invCompositeDisplay(field, raw) {
+  const arr = invCompositeToArray(field, raw);
+  const sep = field.compositeSeparator || '-';
+  return arr.filter(s => String(s).trim()).join(sep);
+}
+
+function invIsEmptyValue(field, v) {
+  if (v === undefined || v === null || v === '') return true;
+  if (field.type === 'boolean' && v === false) return true;
+  if (field.type === 'multi_select') return !Array.isArray(v) || v.length === 0;
+  if (field.type === 'composite') {
+    return invCompositeToArray(field, v).every(p => !String(p || '').trim());
+  }
+  if (field.type === 'number' && field.unitMode === 'dictionary') {
+    if (typeof v !== 'object' || v === null) return true;
+    return v.amount == null || v.amount === '';
+  }
+  return false;
+}
+
+function invDeepClone(o) {
+  try { return JSON.parse(JSON.stringify(o)); } catch (_) { return o; }
 }
 
 /** Нормализация полей шаблона/снимка: убрать битые записи, гарантировать key и label */
@@ -37,16 +124,54 @@ function invNormalizeTemplateFields(fields) {
     if (!f) continue;
     const key = String(f.key || '').trim();
     if (!key) continue;
-    const type = INV_FIELD_TYPES.includes(f.type) ? f.type : 'text';
+    let type = INV_FIELD_TYPES.includes(f.type) ? f.type : 'text';
     let label = String(f.label || f.name || '').trim();
     if (!label) label = key;
     const base = { key, label, type, required: !!f.required };
-    if (type === 'select') {
-      base.options = Array.isArray(f.options) ? f.options.filter(Boolean) : [];
+
+    if (type === 'select' || type === 'multi_select') {
+      const src = (f.selectSource === 'dictionary') ? 'dictionary' : 'options';
+      base.selectSource = src;
+      if (src === 'dictionary') {
+        const slug = String(f.dictionarySlug || '').trim();
+        base.dictionarySlug = slug || INV_DICT_SLUG.STORAGE;
+        base.options = undefined;
+      } else {
+        base.options = Array.isArray(f.options) ? f.options.filter(Boolean) : [];
+        base.dictionarySlug = undefined;
+      }
     }
+
     if (type === 'number') {
-      base.unit = f.unit != null ? String(f.unit) : '';
+      let um = f.unitMode;
+      if (um !== 'dictionary' && um !== 'none' && um !== 'free') {
+        um = (f.unit && String(f.unit).trim()) ? 'free' : 'none';
+      }
+      base.unitMode = um;
+      if (um === 'dictionary') {
+        base.dictionarySlug = String(f.dictionarySlug || '').trim() || INV_DICT_SLUG.UNITS;
+        base.unit = '';
+      } else if (um === 'free') {
+        base.unit = f.unit != null ? String(f.unit) : '';
+        base.dictionarySlug = undefined;
+      } else {
+        base.unit = '';
+        base.dictionarySlug = undefined;
+      }
     }
+
+    if (type === 'composite') {
+      let parts = Array.isArray(f.compositeParts) ? f.compositeParts.map(p => String(p || '').trim()).filter(Boolean) : [];
+      if (parts.length < 2) {
+        parts = [
+          L.inv_composite_part_default1 || 'Часть 1',
+          L.inv_composite_part_default2 || 'Часть 2',
+        ];
+      }
+      base.compositeParts = parts.slice(0, 8);
+      base.compositeSeparator = String(f.compositeSeparator || '-').slice(0, 3) || '-';
+    }
+
     out.push(base);
   }
   return out;
@@ -219,18 +344,17 @@ async function duplicateInventoryTemplate(id) {
 async function openInventoryTemplateEdit(id) {
   const t = await dbGetInventoryTemplate(id);
   if (!t) return;
+  const raw = (Array.isArray(t.fields) ? t.fields : []).map(f => ({ ...f, key: f.key || invUuid() }));
+  const norm = invNormalizeTemplateFields(raw);
   invTplEditing = {
     id: t.id,
     name: t.name || '',
     desc: t.desc || '',
     archived: !!t.archived,
-    fields: (Array.isArray(t.fields) ? t.fields : []).map(f => ({
-      key: f.key || invUuid(),
-      label: f.label || f.name || '',
-      type: INV_FIELD_TYPES.includes(f.type) ? f.type : 'text',
-      options: Array.isArray(f.options) ? f.options.slice() : [],
-      unit: f.unit || '',
-      required: !!f.required,
+    fields: norm.map(f => ({
+      ...f,
+      options: Array.isArray(f.options) ? [...f.options] : [],
+      compositeParts: Array.isArray(f.compositeParts) ? [...f.compositeParts] : [],
     })),
   };
   showInventoryTemplateModal();
@@ -255,6 +379,14 @@ function closeInventoryTemplateModal() {
   invTplEditing = null;
 }
 
+function invDictionarySelectHtml(selectedSlug, idx, isUnitDict) {
+  const slugs = [INV_DICT_SLUG.STORAGE, INV_DICT_SLUG.UNITS];
+  return slugs.map(sl => {
+    const sel = (selectedSlug || (isUnitDict ? INV_DICT_SLUG.UNITS : INV_DICT_SLUG.STORAGE)) === sl ? 'selected' : '';
+    return `<option value="${invEsc(sl)}" ${sel}>${invEsc(invDictTitle(sl))}</option>`;
+  }).join('');
+}
+
 function renderInventoryTemplateFieldsList() {
   const wrap = document.getElementById('invTplFieldsList');
   if (!wrap || !invTplEditing) return;
@@ -266,25 +398,87 @@ function renderInventoryTemplateFieldsList() {
     return;
   }
   wrap.innerHTML = invTplEditing.fields.map((f, idx) => {
-    const opts = INV_FIELD_TYPES.map(t =>
+    const typeOpts = INV_FIELD_TYPES.map(t =>
       `<option value="${t}" ${t === f.type ? 'selected' : ''}>${invEsc(invFieldTypeLabel(t))}</option>`
     ).join('');
-    const optionsBlock = f.type === 'select'
-      ? `<div class="field-row-options">
-           <label class="form-label" style="font-size:11px;">${invEsc(L.inv_field_options_label || 'Варианты (через запятую)')}</label>
-           <input type="text" class="form-input" value="${invEsc((f.options || []).join(', '))}"
-                  oninput="onInventoryTemplateFieldOptions(${idx}, this.value)">
-         </div>`
-      : '';
-    const unitBlock = f.type === 'number'
-      ? `<input type="text" class="form-input" placeholder="${invEsc(L.inv_field_unit_placeholder || 'ед.')}"
-                value="${invEsc(f.unit || '')}" oninput="onInventoryTemplateFieldUnit(${idx}, this.value)">`
-      : `<span></span>`;
+
+    let extraBlocks = '';
+    if (f.type === 'select' || f.type === 'multi_select') {
+      const src = (f.selectSource === 'dictionary') ? 'dictionary' : 'options';
+      extraBlocks = `
+        <div class="field-row-options">
+          <label class="form-label" style="font-size:11px;">${invEsc(L.inv_field_select_source || 'Источник значений')}</label>
+          <select class="form-select" onchange="onInventoryTemplateSelectSource(${idx}, this.value)">
+            <option value="options" ${src === 'options' ? 'selected' : ''}>${invEsc(L.inv_field_source_options || 'Свой список')}</option>
+            <option value="dictionary" ${src === 'dictionary' ? 'selected' : ''}>${invEsc(L.inv_field_source_dictionary || 'Справочник')}</option>
+          </select>
+        </div>`;
+      if (src === 'dictionary') {
+        extraBlocks += `
+          <div class="field-row-options">
+            <label class="form-label" style="font-size:11px;">${invEsc(L.inv_field_dictionary_pick || 'Справочник')}</label>
+            <select class="form-select" onchange="onInventoryTemplateFieldDictionary(${idx}, this.value)">
+              ${invDictionarySelectHtml(f.dictionarySlug, idx, false)}
+            </select>
+          </div>`;
+      } else {
+        extraBlocks += `
+          <div class="field-row-options">
+            <label class="form-label" style="font-size:11px;">${invEsc(L.inv_field_options_label || 'Варианты (через запятую)')}</label>
+            <input type="text" class="form-input" value="${invEsc((f.options || []).join(', '))}"
+                   oninput="onInventoryTemplateFieldOptions(${idx}, this.value)">
+          </div>`;
+      }
+    }
+
+    let unitBlock = '<span></span>';
+    if (f.type === 'number') {
+      const um = f.unitMode || 'free';
+      extraBlocks += `
+        <div class="field-row-options">
+          <label class="form-label" style="font-size:11px;">${invEsc(L.inv_field_unit_mode || 'Единица измерения')}</label>
+          <select class="form-select" onchange="onInventoryTemplateUnitMode(${idx}, this.value)">
+            <option value="none" ${um === 'none' ? 'selected' : ''}>${invEsc(L.inv_field_unit_none || 'Нет')}</option>
+            <option value="free" ${um === 'free' ? 'selected' : ''}>${invEsc(L.inv_field_unit_free || 'Своя подпись')}</option>
+            <option value="dictionary" ${um === 'dictionary' ? 'selected' : ''}>${invEsc(L.inv_field_unit_dictionary || 'Из справочника')}</option>
+          </select>
+        </div>`;
+      if (um === 'free') {
+        unitBlock = `<input type="text" class="form-input" placeholder="${invEsc(L.inv_field_unit_placeholder || 'ед.')}"
+                  value="${invEsc(f.unit || '')}" oninput="onInventoryTemplateFieldUnit(${idx}, this.value)">`;
+      } else if (um === 'dictionary') {
+        unitBlock = `<select class="form-select" onchange="onInventoryTemplateFieldDictionary(${idx}, this.value)">
+            ${invDictionarySelectHtml(f.dictionarySlug, idx, true)}
+          </select>`;
+      }
+    }
+
+    if (f.type === 'composite') {
+      const parts = Array.isArray(f.compositeParts) ? f.compositeParts : [];
+      const partRows = parts.map((p, pi) => `
+        <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+          <input type="text" class="form-input" style="flex:1" value="${invEsc(p)}"
+                 oninput="onInventoryTemplateCompositePartLabel(${idx}, ${pi}, this.value)">
+          <button type="button" class="btn btn-ghost btn-sm btn-icon" onclick="removeInventoryTemplateCompositePart(${idx}, ${pi})" title="${invEsc(L.inv_composite_remove_part || 'Убрать')}">🗑</button>
+        </div>`).join('');
+      extraBlocks += `
+        <div class="field-row-options">
+          <label class="form-label" style="font-size:11px;">${invEsc(L.inv_field_composite_sep || 'Разделитель частей')}</label>
+          <input type="text" class="form-input" style="max-width:80px" value="${invEsc(f.compositeSeparator || '-')}"
+                 oninput="onInventoryTemplateCompositeSep(${idx}, this.value)">
+          <div style="margin-top:8px;font-size:11px;color:var(--text-dim);">${invEsc(L.inv_field_composite_parts || 'Подписи частей номера')}</div>
+          ${partRows}
+          <button type="button" class="add-part-btn" style="margin-top:6px" onclick="addInventoryTemplateCompositePart(${idx})">
+            + ${invEsc(L.inv_composite_add_part || 'часть')}
+          </button>
+        </div>`;
+    }
+
     return `
       <div class="inv-field-row">
         <input type="text" class="form-input" placeholder="${invEsc(L.inv_field_label_placeholder || 'Название поля')}"
                value="${invEsc(f.label)}" oninput="onInventoryTemplateFieldLabel(${idx}, this.value)">
-        <select class="form-select" onchange="onInventoryTemplateFieldType(${idx}, this.value)">${opts}</select>
+        <select class="form-select" onchange="onInventoryTemplateFieldType(${idx}, this.value)">${typeOpts}</select>
         ${unitBlock}
         <label class="checkbox-row" title="${invEsc(L.inv_field_required || 'Обязательное')}">
           <input type="checkbox" ${f.required ? 'checked' : ''} onchange="onInventoryTemplateFieldRequired(${idx}, this.checked)">
@@ -295,14 +489,26 @@ function renderInventoryTemplateFieldsList() {
           <button type="button" class="btn btn-ghost btn-sm btn-icon" title="↓" onclick="moveInventoryTemplateField(${idx},  1)">↓</button>
           <button type="button" class="btn btn-danger btn-sm btn-icon" title="${invEsc(L.btn_delete || 'Удалить')}" onclick="removeInventoryTemplateField(${idx})">🗑</button>
         </span>
-        ${optionsBlock}
+        ${extraBlocks}
       </div>`;
   }).join('');
 }
 
 function addInventoryTemplateField() {
   if (!invTplEditing) return;
-  invTplEditing.fields.push({ key: invUuid(), label: '', type: 'text', required: false, options: [], unit: '' });
+  invTplEditing.fields.push({
+    key: invUuid(),
+    label: '',
+    type: 'text',
+    required: false,
+    options: [],
+    selectSource: 'options',
+    dictionarySlug: INV_DICT_SLUG.STORAGE,
+    unit: '',
+    unitMode: 'free',
+    compositeParts: [L.inv_composite_part_default1 || 'Часть 1', L.inv_composite_part_default2 || 'Часть 2'],
+    compositeSeparator: '-',
+  });
   renderInventoryTemplateFieldsList();
 }
 function removeInventoryTemplateField(idx) {
@@ -320,12 +526,72 @@ function moveInventoryTemplateField(idx, delta) {
   renderInventoryTemplateFieldsList();
 }
 function onInventoryTemplateFieldLabel(idx, v)    { if (invTplEditing?.fields[idx]) invTplEditing.fields[idx].label = v; }
-function onInventoryTemplateFieldType(idx, v)     { if (invTplEditing?.fields[idx]) { invTplEditing.fields[idx].type = v; renderInventoryTemplateFieldsList(); } }
+function onInventoryTemplateFieldType(idx, v) {
+  if (!invTplEditing?.fields[idx]) return;
+  const f = invTplEditing.fields[idx];
+  f.type = v;
+  if (v === 'select' || v === 'multi_select') {
+    if (!f.selectSource) f.selectSource = 'options';
+    f.dictionarySlug = f.dictionarySlug || INV_DICT_SLUG.STORAGE;
+  }
+  if (v === 'number') {
+    if (!['none', 'free', 'dictionary'].includes(f.unitMode)) f.unitMode = 'free';
+    if (f.unitMode === 'dictionary') f.dictionarySlug = f.dictionarySlug || INV_DICT_SLUG.UNITS;
+  }
+  if (v === 'composite') {
+    if (!Array.isArray(f.compositeParts) || f.compositeParts.length < 2) {
+      f.compositeParts = [L.inv_composite_part_default1 || 'Часть 1', L.inv_composite_part_default2 || 'Часть 2'];
+    }
+    f.compositeSeparator = f.compositeSeparator || '-';
+  }
+  renderInventoryTemplateFieldsList();
+}
 function onInventoryTemplateFieldUnit(idx, v)     { if (invTplEditing?.fields[idx]) invTplEditing.fields[idx].unit = v; }
 function onInventoryTemplateFieldRequired(idx, v) { if (invTplEditing?.fields[idx]) invTplEditing.fields[idx].required = !!v; }
 function onInventoryTemplateFieldOptions(idx, v) {
   if (!invTplEditing?.fields[idx]) return;
   invTplEditing.fields[idx].options = String(v || '').split(',').map(s => s.trim()).filter(Boolean);
+}
+function onInventoryTemplateSelectSource(idx, v) {
+  if (!invTplEditing?.fields[idx]) return;
+  invTplEditing.fields[idx].selectSource = v === 'dictionary' ? 'dictionary' : 'options';
+  renderInventoryTemplateFieldsList();
+}
+function onInventoryTemplateFieldDictionary(idx, slug) {
+  if (!invTplEditing?.fields[idx]) return;
+  invTplEditing.fields[idx].dictionarySlug = slug;
+}
+function onInventoryTemplateUnitMode(idx, v) {
+  if (!invTplEditing?.fields[idx]) return;
+  invTplEditing.fields[idx].unitMode = v;
+  if (v === 'dictionary') {
+    invTplEditing.fields[idx].dictionarySlug = invTplEditing.fields[idx].dictionarySlug || INV_DICT_SLUG.UNITS;
+    invTplEditing.fields[idx].unit = '';
+  }
+  renderInventoryTemplateFieldsList();
+}
+function onInventoryTemplateCompositeSep(idx, v) {
+  if (!invTplEditing?.fields[idx]) return;
+  invTplEditing.fields[idx].compositeSeparator = String(v || '-').slice(0, 3) || '-';
+}
+function onInventoryTemplateCompositePartLabel(idx, partIdx, v) {
+  if (!invTplEditing?.fields[idx]?.compositeParts) return;
+  invTplEditing.fields[idx].compositeParts[partIdx] = v;
+}
+function addInventoryTemplateCompositePart(idx) {
+  if (!invTplEditing?.fields[idx]) return;
+  const parts = invTplEditing.fields[idx].compositeParts || [];
+  if (parts.length >= 8) return;
+  parts.push(`${L.inv_composite_part_default_short || 'Часть'} ${parts.length + 1}`);
+  invTplEditing.fields[idx].compositeParts = parts;
+  renderInventoryTemplateFieldsList();
+}
+function removeInventoryTemplateCompositePart(idx, partIdx) {
+  if (!invTplEditing?.fields[idx]?.compositeParts) return;
+  const parts = invTplEditing.fields[idx].compositeParts;
+  if (parts.length <= 2) return;
+  parts.splice(partIdx, 1);
+  renderInventoryTemplateFieldsList();
 }
 
 async function saveInventoryTemplateModal() {
@@ -336,14 +602,7 @@ async function saveInventoryTemplateModal() {
   const fields = (invTplEditing.fields || []).filter(f => (f.label || '').trim());
   if (fields.length === 0) { invToast(L.inv_err_template_fields_required || 'Добавьте хотя бы одно поле', 'error'); return; }
 
-  const cleanFields = invNormalizeTemplateFields(fields.map(f => ({
-    key: f.key || invUuid(),
-    label: f.label.trim(),
-    type: INV_FIELD_TYPES.includes(f.type) ? f.type : 'text',
-    options: (f.type === 'select') ? (Array.isArray(f.options) ? f.options.filter(Boolean) : []) : undefined,
-    unit:    (f.type === 'number') ? (f.unit || '') : undefined,
-    required: !!f.required,
-  })));
+  const cleanFields = invNormalizeTemplateFields(fields);
 
   const now = invNowIso();
   if (invTplEditing.id) {
@@ -523,7 +782,7 @@ async function saveInventoryRecordCreateModal() {
     templateSnapshot: {
       name: tpl.name,
       desc: tpl.desc || '',
-      fields: (tpl.fields || []).map(f => ({ ...f })),
+      fields: invNormalizeTemplateFields((tpl.fields || []).map(f => ({ ...f, key: f.key || invUuid() }))),
     },
     name,
     date,
@@ -597,7 +856,15 @@ async function renderInventoryRecordDetail(id) {
     });
   }
 
-  const headers = fields.map(f => `<th>${invEsc(f.label)}${f.type === 'number' && f.unit ? ` <span style="color:var(--text-dim);">(${invEsc(f.unit)})</span>` : ''}</th>`).join('');
+  const headers = fields.map(f => {
+    let suf = '';
+    if (f.type === 'number' && f.unitMode === 'free' && f.unit) {
+      suf = ` <span style="color:var(--text-dim);">(${invEsc(f.unit)})</span>`;
+    } else if (f.type === 'number' && f.unitMode === 'dictionary') {
+      suf = ` <span style="color:var(--text-dim);">(${invEsc(L.inv_field_unit_dictionary_short || 'ед.')})</span>`;
+    }
+    return `<th>${invEsc(f.label)}${suf}</th>`;
+  }).join('');
   const colCount = fields.length + 1;
 
   const rowsHtml = visibleItems.length === 0
@@ -609,6 +876,7 @@ async function renderInventoryRecordDetail(id) {
             ${cells}
             <td class="col-actions">
               <button class="btn btn-ghost btn-sm" onclick="openInventoryItemEdit(${rec.id}, '${invEsc(it.id)}')">${invEsc(L.inv_btn_edit_short || 'Изм.')}</button>
+              <button class="btn btn-ghost btn-sm" onclick="duplicateInventoryItem(${rec.id}, '${invEsc(it.id)}')">${invEsc(L.inv_btn_duplicate_item || 'Копия')}</button>
               <button class="btn btn-danger btn-sm btn-icon" title="${invEsc(L.btn_delete || 'Удалить')}" onclick="deleteInventoryItem(${rec.id}, '${invEsc(it.id)}')">🗑</button>
             </td>
           </tr>`;
@@ -647,10 +915,38 @@ async function renderInventoryRecordDetail(id) {
 function invItemValueText(item, field) {
   if (!field) return '';
   const raw = item?.values ? item.values[field.key] : undefined;
+  if (field.type === 'boolean') {
+    if (raw === undefined || raw === null || raw === '') return '';
+    return raw ? (L.inv_yes || 'Да') : (L.inv_no || 'Нет');
+  }
+  if (field.type === 'date') {
+    if (raw === undefined || raw === null || raw === '') return '';
+    return invFormatDate(raw);
+  }
+  if (field.type === 'number') {
+    if (field.unitMode === 'dictionary') {
+      if (raw && typeof raw === 'object' && 'amount' in raw) {
+        const a = raw.amount;
+        const u = raw.unit || '';
+        if ((a == null || a === '') && !u) return '';
+        return [String(a ?? ''), u].filter(Boolean).join(' ').trim();
+      }
+      if (typeof raw === 'number') return String(raw);
+      return raw != null && raw !== '' ? String(raw) : '';
+    }
+    if (raw === undefined || raw === null || raw === '') return '';
+    const u = field.unitMode === 'free' && field.unit ? String(field.unit) : '';
+    const num = String(raw);
+    return u ? `${num} ${u}`.trim() : num;
+  }
+  if (field.type === 'multi_select') {
+    if (!Array.isArray(raw) || raw.length === 0) return '';
+    return raw.map(String).join(', ');
+  }
+  if (field.type === 'composite') {
+    return invCompositeDisplay(field, raw);
+  }
   if (raw === undefined || raw === null || raw === '') return '';
-  if (field.type === 'boolean') return raw ? (L.inv_yes || 'Да') : (L.inv_no || 'Нет');
-  if (field.type === 'date')    return invFormatDate(raw);
-  if (field.type === 'number')  return String(raw);
   return String(raw);
 }
 
@@ -687,7 +983,7 @@ async function openInventoryItemAdd(recordId) {
     values: initial,
     _origValues: { ...initial },
   };
-  showInventoryItemModal(rec, true);
+  await showInventoryItemModal(rec, true);
 }
 
 async function openInventoryItemEdit(recordId, itemId) {
@@ -701,6 +997,16 @@ async function openInventoryItemEdit(recordId, itemId) {
   fields.forEach(f => {
     if (!f.key) return;
     if (!(f.key in values)) values[f.key] = invDefaultEmptyValue(f);
+    else if (f.type === 'composite') {
+      values[f.key] = invCompositeToArray(f, values[f.key]);
+    } else if (f.type === 'multi_select' && !Array.isArray(values[f.key])) {
+      values[f.key] = [];
+    } else if (f.type === 'number' && f.unitMode === 'dictionary') {
+      const v = values[f.key];
+      if (v == null || typeof v !== 'object' || Array.isArray(v)) {
+        values[f.key] = { amount: (typeof v === 'number') ? v : null, unit: '' };
+      }
+    }
   });
   invItemEditing = {
     recordId,
@@ -708,10 +1014,10 @@ async function openInventoryItemEdit(recordId, itemId) {
     values,
     _origValues: diskVals,
   };
-  showInventoryItemModal(rec, false);
+  await showInventoryItemModal(rec, false);
 }
 
-function showInventoryItemModal(rec, isNew) {
+async function showInventoryItemModal(rec, isNew) {
   const titleEl = document.getElementById('invItemModalTitle');
   if (titleEl) titleEl.textContent = isNew
     ? (L.inv_modal_item_add_title  || 'Новая позиция')
@@ -719,29 +1025,86 @@ function showInventoryItemModal(rec, isNew) {
 
   const body = document.getElementById('invItemFormBody');
   const fields = invGetRecordFields(rec);
-  body.innerHTML = `<div class="form-grid">${fields.map(f => renderInventoryItemFieldInput(f)).join('')}</div>`;
+  const dictMap = await invLoadDictionariesMap();
+  body.innerHTML = `<div class="form-grid">${fields.map(f => renderInventoryItemFieldInput(f, dictMap)).join('')}</div>`;
   document.getElementById('invItemModal')?.classList.add('open');
   setTimeout(() => body.querySelector('input,select,textarea')?.focus(), 50);
 }
 
-function renderInventoryItemFieldInput(field) {
+function renderInventoryItemFieldInput(field, dictMap) {
   const id = `invItemFld_${field.key.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
   const val = invItemEditing?.values?.[field.key];
   const req = field.required ? '<span class="required"> *</span>' : '';
-  const labelHtml = `<span>${invEsc(field.label)}${field.type === 'number' && field.unit ? ` <span style="color:var(--text-dim);">(${invEsc(field.unit)})</span>` : ''}</span>${req}`;
+  let labelExtra = '';
+  if (field.type === 'number' && field.unitMode === 'free' && field.unit) {
+    labelExtra = ` <span style="color:var(--text-dim);">(${invEsc(field.unit)})</span>`;
+  } else if (field.type === 'number' && field.unitMode === 'dictionary') {
+    labelExtra = ` <span style="color:var(--text-dim);">(${invEsc(L.inv_dict_title_units || 'ед.')})</span>`;
+  }
+  const labelHtml = `<span>${invEsc(field.label)}${labelExtra}</span>${req}`;
   let inputHtml;
   switch (field.type) {
     case 'number':
-      inputHtml = `<input type="number" step="any" class="form-input" id="${id}" value="${val == null ? '' : invEsc(val)}"
+      if (field.unitMode === 'dictionary') {
+        const o = (val && typeof val === 'object' && !Array.isArray(val)) ? val : { amount: null, unit: '' };
+        const opts = ['<option value=""></option>'].concat(
+          invFieldOptionList(field, dictMap).map(u =>
+            `<option value="${invEsc(u)}" ${String(o.unit || '') === String(u) ? 'selected' : ''}>${invEsc(u)}</option>`)
+        ).join('');
+        inputHtml = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input type="number" step="any" class="form-input" style="min-width:120px;flex:1" id="${id}"
+            value="${o.amount == null ? '' : invEsc(o.amount)}"
+            data-inv-key="${invEsc(field.key)}"
+            oninput="onInventoryItemNumDictAmount(this.dataset.invKey, this.value)">
+          <select class="form-select" style="min-width:140px;flex:1" data-inv-key="${invEsc(field.key)}"
+            onchange="onInventoryItemNumDictUnit(this.dataset.invKey, this.value)">${opts}</select>
+        </div>`;
+      } else {
+        inputHtml = `<input type="number" step="any" class="form-input" id="${id}" value="${val == null ? '' : invEsc(val)}"
                           data-inv-key="${invEsc(field.key)}"
                           oninput="onInventoryItemFieldChange(this.dataset.invKey, this.value, 'number')">`;
+      }
       break;
     case 'select': {
-      const opts = ['<option value=""></option>'].concat(
-        (field.options || []).map(o => `<option value="${invEsc(o)}" ${String(val || '') === String(o) ? 'selected' : ''}>${invEsc(o)}</option>`)
-      ).join('');
-      inputHtml = `<select class="form-select" id="${id}" data-inv-key="${invEsc(field.key)}"
-                          onchange="onInventoryItemFieldChange(this.dataset.invKey, this.value, 'select')">${opts}</select>`;
+      const list = invFieldOptionList(field, dictMap);
+      if (list.length === 0) {
+        inputHtml = `<div style="color:var(--text-dim);font-size:12px;">${invEsc(L.inv_field_no_options || 'Нет вариантов. Укажите список в шаблоне или заполните справочник.')}</div>`;
+      } else {
+        const opts = ['<option value=""></option>'].concat(
+          list.map(o => `<option value="${invEsc(o)}" ${String(val || '') === String(o) ? 'selected' : ''}>${invEsc(o)}</option>`)
+        ).join('');
+        inputHtml = `<select class="form-select" id="${id}" data-inv-key="${invEsc(field.key)}"
+                            onchange="onInventoryItemFieldChange(this.dataset.invKey, this.value, 'select')">${opts}</select>`;
+      }
+      break;
+    }
+    case 'multi_select': {
+      const list = invFieldOptionList(field, dictMap);
+      const sel = Array.isArray(val) ? val.map(String) : [];
+      if (list.length === 0) {
+        inputHtml = `<div style="color:var(--text-dim);font-size:12px;">${invEsc(L.inv_field_no_options || 'Нет вариантов. Укажите список в шаблоне или заполните справочник.')}</div>`;
+        break;
+      }
+      inputHtml = `<div class="inv-multi-wrap">${list.map(o => {
+        const ck = sel.includes(String(o)) ? 'checked' : '';
+        return `<label class="checkbox-row" style="display:flex;margin:4px 0;">
+          <input type="checkbox" ${ck} data-inv-key="${invEsc(field.key)}" data-opt="${invEsc(o)}"
+            onchange="onInventoryItemMultiToggleEl(this)">
+          <span>${invEsc(o)}</span>
+        </label>`;
+      }).join('')}</div>`;
+      break;
+    }
+    case 'composite': {
+      const parts = field.compositeParts || [];
+      const arr = invCompositeToArray(field, val);
+      inputHtml = `<div class="inv-composite-inputs" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${parts.map((pl, pi) => `
+        <div style="flex:1;min-width:72px;">
+          <div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">${invEsc(pl)}</div>
+          <input type="text" class="form-input" value="${invEsc(arr[pi] || '')}"
+            data-inv-key="${invEsc(field.key)}"
+            oninput="onInventoryItemCompositePartChange(this.dataset.invKey, ${pi}, this.value)">
+        </div>`).join('')}</div>`;
       break;
     }
     case 'date':
@@ -763,6 +1126,46 @@ function renderInventoryItemFieldInput(field) {
   return `<div class="form-group full"><label class="form-label">${labelHtml}</label>${inputHtml}</div>`;
 }
 
+function onInventoryItemNumDictAmount(key, raw) {
+  if (!invItemEditing) return;
+  let o = invItemEditing.values[key];
+  if (!o || typeof o !== 'object' || Array.isArray(o)) o = { amount: null, unit: '' };
+  if (raw === '' || raw == null) o.amount = null;
+  else {
+    const n = Number(raw);
+    o.amount = Number.isFinite(n) ? n : null;
+  }
+  invItemEditing.values[key] = { ...o };
+}
+function onInventoryItemNumDictUnit(key, raw) {
+  if (!invItemEditing) return;
+  let o = invItemEditing.values[key];
+  if (!o || typeof o !== 'object' || Array.isArray(o)) o = { amount: null, unit: '' };
+  o.unit = raw;
+  invItemEditing.values[key] = { ...o };
+}
+function onInventoryItemCompositePartChange(key, partIdx, raw) {
+  if (!invItemEditing) return;
+  let arr = invItemEditing.values[key];
+  if (!Array.isArray(arr)) arr = [];
+  arr = arr.slice();
+  while (arr.length <= partIdx) arr.push('');
+  arr[partIdx] = raw;
+  invItemEditing.values[key] = arr;
+}
+function onInventoryItemMultiToggle(key, opt, checked) {
+  if (!invItemEditing) return;
+  let arr = Array.isArray(invItemEditing.values[key]) ? invItemEditing.values[key].map(String) : [];
+  const s = String(opt);
+  if (checked) { if (!arr.includes(s)) arr.push(s); }
+  else arr = arr.filter(x => x !== s);
+  invItemEditing.values[key] = arr;
+}
+function onInventoryItemMultiToggleEl(el) {
+  if (!el || !el.dataset) return;
+  onInventoryItemMultiToggle(el.dataset.invKey, el.dataset.opt, el.checked);
+}
+
 function onInventoryItemFieldChange(key, raw, type) {
   if (!invItemEditing) return;
   if (type === 'number') {
@@ -780,48 +1183,58 @@ function closeInventoryItemModal() {
   invItemEditing = null;
 }
 
+function invValueFingerprint(f, v) {
+  if (f.type === 'composite' || f.type === 'multi_select') return JSON.stringify(v ?? null);
+  if (f.type === 'number' && f.unitMode === 'dictionary') return JSON.stringify(v ?? null);
+  return String(v ?? '');
+}
+
 async function saveInventoryItemModal() {
   if (!invItemEditing) return;
   const rec = await dbGetInventoryRecord(invItemEditing.recordId);
   if (!rec) { closeInventoryItemModal(); return; }
   const fields = invGetRecordFields(rec);
 
-  // required check
+  for (const f of fields) {
+    if (f.type === 'composite') {
+      invItemEditing.values[f.key] = invCompositeToArray(f, invItemEditing.values[f.key]);
+    }
+  }
+
   for (const f of fields) {
     if (!f.required) continue;
     const v = invItemEditing.values[f.key];
-    const empty = (v === undefined || v === null || v === '' || (f.type === 'boolean' && v === false));
-    if (empty) {
+    if (invIsEmptyValue(f, v)) {
       invToast((L.inv_err_field_required || 'Обязательное поле:') + ' ' + f.label, 'error');
       return;
     }
   }
 
   const isEdit = invItemEditing.itemId != null;
-  // подтверждение редактирования количества/описания
   if (isEdit) {
     const sensitiveChange = fields.some(f => {
-      if (f.type !== 'number' && f.type !== 'text') return false;
+      if (!['number', 'text', 'composite', 'multi_select'].includes(f.type)) return false;
       if (!Object.prototype.hasOwnProperty.call(invItemEditing._origValues, f.key)) return false;
       const oldV = invItemEditing._origValues[f.key];
       const newV = invItemEditing.values[f.key];
-      return String(oldV ?? '') !== String(newV ?? '');
+      return invValueFingerprint(f, oldV) !== invValueFingerprint(f, newV);
     });
     if (sensitiveChange) {
       if (!invConfirm(L.inv_confirm_edit_item || 'Сохранить изменения позиции?')) return;
     }
   }
 
+  const outVals = invDeepClone(invItemEditing.values);
   const items = Array.isArray(rec.items) ? rec.items.slice() : [];
   if (isEdit) {
     const idx = items.findIndex(x => String(x.id) === String(invItemEditing.itemId));
     if (idx >= 0) {
-      items[idx] = { ...items[idx], values: { ...invItemEditing.values }, updatedAt: invNowIso() };
+      items[idx] = { ...items[idx], values: outVals, updatedAt: invNowIso() };
     }
   } else {
     items.push({
       id: invUuid(),
-      values: { ...invItemEditing.values },
+      values: outVals,
       createdAt: invNowIso(),
       updatedAt: invNowIso(),
     });
@@ -834,6 +1247,25 @@ async function saveInventoryItemModal() {
                   : (L.inv_toast_item_added   || 'Позиция добавлена'), 'success');
   invScheduleSave();
   await renderInventoryRecordDetail(rec.id);
+}
+
+async function duplicateInventoryItem(recordId, itemId) {
+  const rec = await dbGetInventoryRecord(recordId);
+  if (!rec) return;
+  const it = (rec.items || []).find(x => String(x.id) === String(itemId));
+  if (!it) return;
+  const copy = {
+    id: invUuid(),
+    values: invDeepClone(it.values || {}),
+    createdAt: invNowIso(),
+    updatedAt: invNowIso(),
+  };
+  rec.items = [...(rec.items || []), copy];
+  rec.updatedAt = invNowIso();
+  await dbPutInventoryRecord(rec);
+  invToast(L.inv_toast_item_duplicated || 'Позиция скопирована', 'success');
+  invScheduleSave();
+  await renderInventoryRecordDetail(recordId);
 }
 
 async function deleteInventoryItem(recordId, itemId) {
@@ -857,7 +1289,12 @@ async function printInventoryRecord(id) {
   const fields = invGetRecordFields(rec);
   const items  = Array.isArray(rec.items) ? rec.items : [];
 
-  const headers = fields.map(f => `<th>${invEsc(f.label)}${f.type === 'number' && f.unit ? ` (${invEsc(f.unit)})` : ''}</th>`).join('');
+  const headers = fields.map(f => {
+    let suf = '';
+    if (f.type === 'number' && f.unitMode === 'free' && f.unit) suf = ` (${invEsc(f.unit)})`;
+    else if (f.type === 'number' && f.unitMode === 'dictionary') suf = ` (${invEsc(L.inv_field_unit_dictionary_short || 'ед.')})`;
+    return `<th>${invEsc(f.label)}${suf}</th>`;
+  }).join('');
   const rows = items.length === 0
     ? `<tr><td colspan="${fields.length || 1}" style="text-align:center;color:#888;">${invEsc(L.inv_no_items || 'Позиций нет')}</td></tr>`
     : items.map((it, idx) => {
@@ -892,6 +1329,60 @@ async function printInventoryRecord(id) {
 }
 
 /* ============================================================
+   СПРАВОЧНИКИ (места хранения, единицы)
+   ============================================================ */
+const INV_DEFAULT_DICTIONARIES = [
+  { slug: INV_DICT_SLUG.STORAGE, values: [] },
+  { slug: INV_DICT_SLUG.UNITS, values: ['шт', 'кг', 'л', 'м', 'м²', 'упак.'] },
+];
+
+async function ensureInventoryDictionaries() {
+  try {
+    for (const def of INV_DEFAULT_DICTIONARIES) {
+      const existing = await dbGetDictionary(def.slug);
+      if (existing && Array.isArray(existing.values)) continue;
+      await dbPutDictionary({
+        slug: def.slug,
+        values: def.values.slice(),
+        updatedAt: invNowIso(),
+      });
+    }
+    invScheduleSave();
+  } catch (e) {
+    console.error('[ensureInventoryDictionaries]', e);
+  }
+}
+
+async function renderDictionariesPage() {
+  const root = document.getElementById('dictionariesList');
+  if (!root) return;
+  await ensureInventoryDictionaries();
+  const slugs = [INV_DICT_SLUG.STORAGE, INV_DICT_SLUG.UNITS];
+  root.innerHTML = slugs.map(slug => `
+    <div class="inv-dict-card" style="margin-bottom:12px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md,8px);">
+      <div style="font-weight:600;margin-bottom:8px;">${invEsc(invDictTitle(slug))}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">${invEsc(L.inv_dict_one_per_line || 'Одна строка — одно значение')}</div>
+      <textarea class="form-textarea" id="dict-edit-${slug}" rows="8" style="font-family:monospace;font-size:13px;width:100%;box-sizing:border-box;"></textarea>
+      <button type="button" class="btn btn-primary btn-sm" style="margin-top:10px" onclick="saveInventoryDictionary('${slug}')">${invEsc(L.btn_save || 'Сохранить')}</button>
+    </div>`).join('');
+  for (const slug of slugs) {
+    const d = await dbGetDictionary(slug);
+    const ta = document.getElementById('dict-edit-' + slug);
+    if (ta) ta.value = (d && Array.isArray(d.values)) ? d.values.join('\n') : '';
+  }
+}
+
+async function saveInventoryDictionary(slug) {
+  const ta = document.getElementById('dict-edit-' + slug);
+  if (!ta) return;
+  const values = ta.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const uniq = [...new Set(values)];
+  await dbPutDictionary({ slug, values: uniq, updatedAt: invNowIso() });
+  invToast(L.inv_toast_dictionary_saved || 'Справочник сохранён', 'success');
+  invScheduleSave();
+}
+
+/* ============================================================
    СИДИРОВАНИЕ ПРЕДУСТАНОВЛЕННОГО ШАБЛОНА
    ============================================================ */
 async function ensureDefaultInventoryTemplate() {
@@ -906,8 +1397,8 @@ async function ensureDefaultInventoryTemplate() {
       fields: [
         { key: invUuid(), label: L.inv_seed_field_desc || 'Описание',         type: 'text',   required: true },
         { key: invUuid(), label: L.inv_seed_field_part || 'Номер по каталогу', type: 'text',   required: false },
-        { key: invUuid(), label: L.inv_seed_field_qty  || 'Количество',       type: 'number', required: false, unit: L.inv_seed_unit_pcs || 'шт' },
-        { key: invUuid(), label: L.inv_seed_field_loc  || 'Место хранения',   type: 'text',   required: false },
+        { key: invUuid(), label: L.inv_seed_field_qty  || 'Количество',       type: 'number', required: false, unitMode: 'free', unit: L.inv_seed_unit_pcs || 'шт' },
+        { key: invUuid(), label: L.inv_seed_field_loc  || 'Место хранения',   type: 'select', required: false, selectSource: 'dictionary', dictionarySlug: INV_DICT_SLUG.STORAGE },
       ],
       createdAt: now,
       updatedAt: now,
@@ -918,10 +1409,10 @@ async function ensureDefaultInventoryTemplate() {
   }
 }
 
-// Инициализация: дождаться готовности IndexedDB (db задаётся в db.js initDB) и засеять предустановленный шаблон
+// Инициализация: дождаться готовности IndexedDB (db задаётся в db.js initDB) и засеять справочники + шаблон
 function _invWaitForDbAndSeed(triesLeft) {
   if (typeof db !== 'undefined' && db) {
-    ensureDefaultInventoryTemplate();
+    ensureInventoryDictionaries().then(() => ensureDefaultInventoryTemplate());
     return;
   }
   if (triesLeft <= 0) return;

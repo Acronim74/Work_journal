@@ -1,11 +1,11 @@
 /* ============================================================
    db.js — IndexedDB wrapper
    Stores: entries, categories, snapshots, issues, plans, meta, tasks,
-           inventoryTemplates, inventoryRecords
+           inventoryTemplates, inventoryRecords, dictionaries
    ============================================================ */
 
 const DB_NAME    = 'WorkJournalDB';
-const DB_VERSION = 6;          // v6: инвентаризация (шаблоны/описи)
+const DB_VERSION = 7;          // v7: справочники инвентаризации (dictionaries)
 
 let db;
 
@@ -61,6 +61,10 @@ function initDB() {
         const ir = d.createObjectStore('inventoryRecords', { keyPath: 'id', autoIncrement: true });
         ir.createIndex('templateId', 'templateId');
         ir.createIndex('updatedAt',  'updatedAt');
+      }
+      // v7
+      if (!d.objectStoreNames.contains('dictionaries')) {
+        d.createObjectStore('dictionaries', { keyPath: 'slug' });
       }
     };
 
@@ -146,7 +150,7 @@ function dbGet(store, id) {
  */
 function dbReadAllForExport() {
   const stores = ['entries', 'categories', 'issues', 'plans', 'snapshots', 'tasks',
-    'inventoryTemplates', 'inventoryRecords'];
+    'inventoryTemplates', 'inventoryRecords', 'dictionaries'];
   return new Promise((resolve, reject) => {
     if (!db) {
       reject(new Error('DB not initialized'));
@@ -199,3 +203,8 @@ function dbGetInventoryRecord(id)        { return dbGet('inventoryRecords', id);
 function dbAddInventoryRecord(o)         { return dbAdd('inventoryRecords', o); }
 function dbPutInventoryRecord(o)         { return dbPut('inventoryRecords', o); }
 function dbDeleteInventoryRecord(id)     { return dbDelete('inventoryRecords', id); }
+
+/* ── DICTIONARIES (инвентаризация) ── */
+function dbGetAllDictionaries()          { return dbAll('dictionaries'); }
+function dbGetDictionary(slug)           { return dbGet('dictionaries', slug); }
+function dbPutDictionary(o)              { return dbPut('dictionaries', o); }

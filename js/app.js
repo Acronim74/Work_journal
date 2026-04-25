@@ -3,7 +3,7 @@
    ============================================================ */
 
 const PAGES = ['journal', 'categories', 'reports', 'issues', 'plans', 'tasks',
-  'inventory', 'inventory-templates', 'archive', 'settings'];
+  'inventory', 'inventory-templates', 'dictionaries', 'archive', 'settings'];
 /** Относительный путь к файлу обмена (Electron): см. main.js EXCHANGE_DIR / EXCHANGE_FILENAME */
 const EXCHANGE_FILE_REL = 'journal-exchange/work-journal-backup.json';
 
@@ -44,6 +44,7 @@ async function init() {
 async function refresh() {
   allEntries    = await dbAll('entries');
   allCategories = sortCategoriesByName(await dbAll('categories'));
+  if (typeof ensureInventoryDictionaries === 'function') await ensureInventoryDictionaries();
   updateStats();
   renderJournal();
   renderCatGrid();
@@ -53,6 +54,7 @@ async function refresh() {
   if (currentPage === 'tasks') await renderTasks();
   if (currentPage === 'inventory' && typeof renderInventoryPage === 'function') await renderInventoryPage();
   if (currentPage === 'inventory-templates' && typeof renderInventoryTemplatesPage === 'function') await renderInventoryTemplatesPage();
+  if (currentPage === 'dictionaries' && typeof renderDictionariesPage === 'function') await renderDictionariesPage();
 }
 
 function updateHeaderDate() {
@@ -131,6 +133,9 @@ function showPage(page) {
   }
   if (page === 'inventory-templates' && typeof renderInventoryTemplatesPage === 'function') {
     renderInventoryTemplatesPage();
+  }
+  if (page === 'dictionaries' && typeof renderDictionariesPage === 'function') {
+    renderDictionariesPage();
   }
   if (page === 'settings') {
     updateElectronDbInfo();
@@ -513,7 +518,7 @@ function clearPresetActive() {
    EXPORT / IMPORT  (экспорт — отдельный файл; зеркало только work-journal-db.json)
    ============================================================ */
 
-const EXPORT_FORMAT_VERSION = 4;
+const EXPORT_FORMAT_VERSION = 5;
 
 async function gatherExportPayload() {
   const out = await dbReadAllForExport();
@@ -528,6 +533,7 @@ async function gatherExportPayload() {
     tasks:      out.tasks,
     inventoryTemplates: out.inventoryTemplates || [],
     inventoryRecords:   out.inventoryRecords   || [],
+    dictionaries:       out.dictionaries       || [],
   };
 }
 
@@ -549,6 +555,7 @@ async function applyImportedPayload(data, opts = {}) {
   await dbClear('tasks');
   await dbClear('inventoryTemplates');
   await dbClear('inventoryRecords');
+  await dbClear('dictionaries');
 
   for (const e of data.entries) await dbAdd('entries', e);
   for (const c of data.categories) await dbAdd('categories', c);
@@ -559,12 +566,14 @@ async function applyImportedPayload(data, opts = {}) {
   const tasks = Array.isArray(data.tasks) ? data.tasks : [];
   const invTpls = Array.isArray(data.inventoryTemplates) ? data.inventoryTemplates : [];
   const invRecs = Array.isArray(data.inventoryRecords)   ? data.inventoryRecords   : [];
+  const invDicts = Array.isArray(data.dictionaries)      ? data.dictionaries       : [];
   for (const i of issues) await dbAdd('issues', i);
   for (const p of plans) await dbAdd('plans', p);
   for (const s of snapshots) await dbAdd('snapshots', s);
   for (const t of tasks) await dbAdd('tasks', t);
   for (const t of invTpls) await dbAdd('inventoryTemplates', t);
   for (const r of invRecs) await dbAdd('inventoryRecords',   r);
+  for (const d of invDicts) await dbPut('dictionaries', d);
 
   await refresh();
   return true;
@@ -712,6 +721,7 @@ async function clearAllData() {
   await dbClear('tasks');
   await dbClear('inventoryTemplates');
   await dbClear('inventoryRecords');
+  await dbClear('dictionaries');
   await dbClear('snapshots');
   await refresh();
   toast(L.toast_cleared, 'success');

@@ -39,6 +39,9 @@ function setLanguage(code) {
   if (typeof currentPage !== 'undefined' && currentPage === 'inventory-templates' && typeof renderInventoryTemplatesPage === 'function') {
     renderInventoryTemplatesPage();
   }
+  if (typeof currentPage !== 'undefined' && currentPage === 'dictionaries' && typeof renderDictionariesPage === 'function') {
+    renderDictionariesPage();
+  }
   renderLangPicker();
   if (typeof updateElectronDbInfo === 'function') updateElectronDbInfo();
 }

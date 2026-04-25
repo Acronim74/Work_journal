@@ -310,6 +310,7 @@
         <div class="page-title" data-i18n="inv_title">Инвентаризация</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-ghost" onclick="showPage('inventory-templates')" data-i18n="inv_btn_templates">Шаблоны</button>
+          <button class="btn btn-ghost" onclick="showPage('dictionaries')" data-i18n="inv_btn_dictionaries">Справочники</button>
           <button class="btn btn-ghost" onclick="openInventoryTemplateCreate()" data-i18n="inv_btn_own_template">Свой шаблон</button>
           <button class="btn btn-primary" onclick="openInventoryRecordCreate()" data-i18n="inv_btn_new_record">+ Новая опись</button>
         </div>
@@ -329,8 +330,9 @@
     <div id="page-inventory-templates" class="hidden">
       <div class="page-header">
         <div class="page-title" data-i18n="inv_tpl_title">Шаблоны инвентаризации</div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-ghost" onclick="showPage('inventory')" data-i18n="inv_btn_back_to_records">← К описям</button>
+          <button class="btn btn-ghost" onclick="showPage('dictionaries')" data-i18n="inv_btn_dictionaries">Справочники</button>
           <button class="btn btn-primary" onclick="openInventoryTemplateCreate()" data-i18n="inv_btn_new_template">+ Новый шаблон</button>
         </div>
       </div>
@@ -341,6 +343,19 @@
         </label>
       </div>
       <div id="inventoryTemplatesList"></div>
+    </div>
+
+    <!-- ─────────── DICTIONARIES PAGE ─────────── -->
+    <div id="page-dictionaries" class="hidden">
+      <div class="page-header">
+        <div class="page-title" data-i18n="dict_page_title">Справочники</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="showPage('inventory')" data-i18n="inv_btn_back_to_records">← К описям</button>
+          <button class="btn btn-ghost" onclick="showPage('inventory-templates')" data-i18n="inv_btn_templates">Шаблоны</button>
+        </div>
+      </div>
+      <p class="dict-page-desc" style="font-size:13px;color:var(--text-dim);margin:0 0 12px 0;" data-i18n="dict_page_desc">Значения используются в полях шаблона при выборе источника «Справочник».</p>
+      <div id="dictionariesList"></div>
     </div>
 
     <!-- ─────────── ARCHIVE PAGE ─────────── -->
