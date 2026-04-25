@@ -1,10 +1,11 @@
 /* ============================================================
    db.js — IndexedDB wrapper
-   Stores: entries, categories, snapshots, issues, plans, meta, tasks
+   Stores: entries, categories, snapshots, issues, plans, meta, tasks,
+           inventoryTemplates, inventoryRecords
    ============================================================ */
 
 const DB_NAME    = 'WorkJournalDB';
-const DB_VERSION = 5;          // v5: задачи (tasks)
+const DB_VERSION = 6;          // v6: инвентаризация (шаблоны/описи)
 
 let db;
 
@@ -49,6 +50,17 @@ function initDB() {
         tk.createIndex('sourceId',   'sourceId');
         tk.createIndex('status',     'status');
         tk.createIndex('source',     ['sourceType', 'sourceId']);
+      }
+      // v6
+      if (!d.objectStoreNames.contains('inventoryTemplates')) {
+        const it = d.createObjectStore('inventoryTemplates', { keyPath: 'id', autoIncrement: true });
+        it.createIndex('archived',  'archived');
+        it.createIndex('updatedAt', 'updatedAt');
+      }
+      if (!d.objectStoreNames.contains('inventoryRecords')) {
+        const ir = d.createObjectStore('inventoryRecords', { keyPath: 'id', autoIncrement: true });
+        ir.createIndex('templateId', 'templateId');
+        ir.createIndex('updatedAt',  'updatedAt');
       }
     };
 
@@ -133,7 +145,8 @@ function dbGet(store, id) {
  * хранилищ может читаться «до» коммита записей/категорий, часть «после».
  */
 function dbReadAllForExport() {
-  const stores = ['entries', 'categories', 'issues', 'plans', 'snapshots', 'tasks'];
+  const stores = ['entries', 'categories', 'issues', 'plans', 'snapshots', 'tasks',
+    'inventoryTemplates', 'inventoryRecords'];
   return new Promise((resolve, reject) => {
     if (!db) {
       reject(new Error('DB not initialized'));
@@ -173,3 +186,16 @@ function dbGetAllTasks()     { return dbAll('tasks'); }
 function dbAddTask(o)        { return dbAdd('tasks', o); }
 function dbPutTask(o)        { return dbPut('tasks', o); }
 function dbDeleteTask(id)   { return dbDelete('tasks', id); }
+
+/* ── INVENTORY ── */
+function dbGetAllInventoryTemplates()    { return dbAll('inventoryTemplates'); }
+function dbGetInventoryTemplate(id)      { return dbGet('inventoryTemplates', id); }
+function dbAddInventoryTemplate(o)       { return dbAdd('inventoryTemplates', o); }
+function dbPutInventoryTemplate(o)       { return dbPut('inventoryTemplates', o); }
+function dbDeleteInventoryTemplate(id)   { return dbDelete('inventoryTemplates', id); }
+
+function dbGetAllInventoryRecords()      { return dbAll('inventoryRecords'); }
+function dbGetInventoryRecord(id)        { return dbGet('inventoryRecords', id); }
+function dbAddInventoryRecord(o)         { return dbAdd('inventoryRecords', o); }
+function dbPutInventoryRecord(o)         { return dbPut('inventoryRecords', o); }
+function dbDeleteInventoryRecord(id)     { return dbDelete('inventoryRecords', id); }

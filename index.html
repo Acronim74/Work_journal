@@ -60,6 +60,10 @@
         <span class="icon">🗂</span>
         <span data-i18n="nav_tasks">Задачи</span>
       </button>
+      <button class="nav-item" onclick="showPage('inventory')" id="nav-inventory">
+        <span class="icon">📦</span>
+        <span data-i18n="nav_inventory">Инвентаризация</span>
+      </button>
       <button class="nav-item" onclick="showPage('archive')" id="nav-archive">
         <span class="icon">🗄</span>
         <span data-i18n="nav_archive">Архив</span>
@@ -298,6 +302,44 @@
         <button class="btn btn-ghost btn-sm" onclick="clearTaskFilters()" data-i18n="btn_resetFilters">✕ Сброс</button>
       </div>
       <div id="tasksList"></div>
+    </div>
+
+    <!-- ─────────── INVENTORY PAGE ─────────── -->
+    <div id="page-inventory" class="hidden">
+      <div class="page-header">
+        <div class="page-title" data-i18n="inv_title">Инвентаризация</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="showPage('inventory-templates')" data-i18n="inv_btn_templates">Шаблоны</button>
+          <button class="btn btn-primary" onclick="openInventoryRecordCreate()" data-i18n="inv_btn_new_record">+ Новая опись</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <input type="text" class="form-input" id="invRecSearch" oninput="renderInventoryPage()" style="flex:1" data-i18n="inv_search_placeholder:placeholder">
+        <select class="form-select" id="invRecFilterTpl" onchange="renderInventoryPage()" style="min-width:200px"></select>
+        <button class="btn btn-ghost btn-sm" onclick="clearInventoryFilters()" data-i18n="btn_resetFilters">✕ Сброс</button>
+      </div>
+      <div id="inventoryRecordsList"></div>
+
+      <!-- Detail view (single record) -->
+      <div id="inventoryRecordDetail" class="hidden" style="margin-top:14px;"></div>
+    </div>
+
+    <!-- ─────────── INVENTORY TEMPLATES PAGE ─────────── -->
+    <div id="page-inventory-templates" class="hidden">
+      <div class="page-header">
+        <div class="page-title" data-i18n="inv_tpl_title">Шаблоны инвентаризации</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="showPage('inventory')" data-i18n="inv_btn_back_to_records">← К описям</button>
+          <button class="btn btn-primary" onclick="openInventoryTemplateCreate()" data-i18n="inv_btn_new_template">+ Новый шаблон</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <label class="checkbox-row">
+          <input type="checkbox" id="invTplShowArchived" onchange="renderInventoryTemplatesPage()">
+          <span data-i18n="inv_tpl_show_archived">Показать архив</span>
+        </label>
+      </div>
+      <div id="inventoryTemplatesList"></div>
     </div>
 
     <!-- ─────────── ARCHIVE PAGE ─────────── -->
@@ -753,6 +795,96 @@
   </div>
 </div>
 
+<!-- ===================== INVENTORY MODALS ===================== -->
+
+<!-- Template editor (create/edit) -->
+<div class="modal-overlay" id="invTemplateModal">
+  <div class="modal modal-large">
+    <div class="modal-header">
+      <div class="modal-title" id="invTemplateModalTitle" data-i18n="inv_modal_template_title">Шаблон описи</div>
+      <button type="button" class="btn btn-ghost btn-icon" onclick="closeInventoryTemplateModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">
+            <span data-i18n="inv_field_template_name">Название шаблона</span><span class="required"> *</span>
+          </label>
+          <input type="text" class="form-input" id="invTplName">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span data-i18n="inv_field_template_desc">Описание (необязательно)</span></label>
+          <input type="text" class="form-input" id="invTplDesc">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">
+            <span data-i18n="inv_field_template_fields">Поля</span><span class="required"> *</span>
+          </label>
+          <div id="invTplFieldsList" class="inv-fields-list"></div>
+          <button type="button" class="add-part-btn" onclick="addInventoryTemplateField()">
+            + <span data-i18n="inv_btn_add_field">добавить поле</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeInventoryTemplateModal()" data-i18n="btn_cancel">Отмена</button>
+      <button type="button" class="btn btn-primary" onclick="saveInventoryTemplateModal()" data-i18n="btn_save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- New record (pick template + name) -->
+<div class="modal-overlay" id="invRecordCreateModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" data-i18n="inv_modal_new_record_title">Новая опись</div>
+      <button type="button" class="btn btn-ghost btn-icon" onclick="closeInventoryRecordCreateModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">
+            <span data-i18n="inv_field_record_template">Шаблон</span><span class="required"> *</span>
+          </label>
+          <select class="form-select" id="invRecCreateTpl"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            <span data-i18n="inv_field_record_name">Название описи</span><span class="required"> *</span>
+          </label>
+          <input type="text" class="form-input" id="invRecCreateName">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span data-i18n="inv_field_record_date">Дата</span></label>
+          <input type="date" class="form-input" id="invRecCreateDate">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeInventoryRecordCreateModal()" data-i18n="btn_cancel">Отмена</button>
+      <button type="button" class="btn btn-primary" onclick="saveInventoryRecordCreateModal()" data-i18n="inv_btn_create">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Item editor (add/edit row inside record) -->
+<div class="modal-overlay" id="invItemModal">
+  <div class="modal modal-large">
+    <div class="modal-header">
+      <div class="modal-title" id="invItemModalTitle" data-i18n="inv_modal_item_title">Позиция описи</div>
+      <button type="button" class="btn btn-ghost btn-icon" onclick="closeInventoryItemModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="invItemFormBody"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeInventoryItemModal()" data-i18n="btn_cancel">Отмена</button>
+      <button type="button" class="btn btn-primary" onclick="saveInventoryItemModal()" data-i18n="btn_save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== SCRIPTS (в конце, чтобы все модалки уже в DOM) ===================== -->
 <script src="i18n/ru.js"></script>
 <script src="i18n/en.js"></script>
@@ -763,6 +895,7 @@
 <script src="js/snapshot.js"></script>
 <script src="js/photos.js"></script>
 <script src="js/app.js"></script>
+<script src="js/inventory.js"></script>
 
 </body>
 </html>

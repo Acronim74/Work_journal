@@ -20,13 +20,17 @@ async function createSnapshot(reason = SNAP_REASON.manual, label = '') {
   const issues     = await dbAll('issues');
   const plans      = await dbAll('plans');
   const tasks      = await dbAll('tasks');
+  const invTpls    = await dbAll('inventoryTemplates');
+  const invRecs    = await dbAll('inventoryRecords');
 
   if (
     entries.length === 0 &&
     categories.length === 0 &&
     issues.length === 0 &&
     plans.length === 0 &&
-    tasks.length === 0
+    tasks.length === 0 &&
+    invTpls.length === 0 &&
+    invRecs.length === 0
   ) return null; // nothing to save
 
   const snap = {
@@ -38,7 +42,10 @@ async function createSnapshot(reason = SNAP_REASON.manual, label = '') {
     issueCount: issues.length,
     planCount:  plans.length,
     taskCount:  tasks.length,
-    data: { entries, categories, issues, plans, tasks },
+    invTplCount: invTpls.length,
+    invRecCount: invRecs.length,
+    data: { entries, categories, issues, plans, tasks,
+            inventoryTemplates: invTpls, inventoryRecords: invRecs },
   };
 
   const id = await dbAdd('snapshots', snap);
@@ -80,15 +87,21 @@ async function restoreSnapshot(snapshotId) {
   await dbClear('issues');
   await dbClear('plans');
   await dbClear('tasks');
+  await dbClear('inventoryTemplates');
+  await dbClear('inventoryRecords');
 
   for (const e of snap.data.entries)    await dbAdd('entries',    e);
   for (const c of snap.data.categories) await dbAdd('categories', c);
   const issues = Array.isArray(snap.data.issues) ? snap.data.issues : [];
   const plans  = Array.isArray(snap.data.plans)  ? snap.data.plans  : [];
   const tasks  = Array.isArray(snap.data.tasks)  ? snap.data.tasks  : [];
+  const invTpls = Array.isArray(snap.data.inventoryTemplates) ? snap.data.inventoryTemplates : [];
+  const invRecs = Array.isArray(snap.data.inventoryRecords)   ? snap.data.inventoryRecords   : [];
   for (const i of issues) await dbAdd('issues', i);
   for (const p of plans)  await dbAdd('plans',  p);
   for (const t of tasks) await dbAdd('tasks',  t);
+  for (const t of invTpls) await dbAdd('inventoryTemplates', t);
+  for (const r of invRecs) await dbAdd('inventoryRecords',   r);
 
   await refresh();
   toast(L.snap_restored, 'success');
@@ -121,6 +134,8 @@ async function downloadSnapshot(id) {
     issues:     snap.data.issues || [],
     plans:      snap.data.plans || [],
     tasks:      snap.data.tasks || [],
+    inventoryTemplates: snap.data.inventoryTemplates || [],
+    inventoryRecords:   snap.data.inventoryRecords   || [],
   };
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });

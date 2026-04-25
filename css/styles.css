@@ -1622,3 +1622,130 @@ a.btn { text-decoration: none; }
 /* Sidebar stat colors */
 .stat-chip-issues .stat-chip-value { color: #ff8080; }
 .stat-chip-plans  .stat-chip-value { color: #80a8ff; }
+ 
+/* ============================================================
+   INVENTORY
+   ============================================================ */
+
+.modal.modal-large { max-width: 880px; }
+
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.inv-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.inv-field-row {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  background: var(--surface-alt, rgba(255,255,255,0.02));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+}
+
+.inv-field-row .form-input,
+.inv-field-row .form-select {
+  width: 100%;
+}
+
+.inv-field-row .field-row-options {
+  grid-column: 1 / -1;
+}
+
+.inv-field-row-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.inv-table-wrap { overflow-x: auto; }
+
+.inv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.inv-table th,
+.inv-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.inv-table th {
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--surface-alt, rgba(255,255,255,0.02));
+  position: sticky;
+  top: 0;
+}
+
+.inv-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+.inv-table .col-actions { width: 1%; white-space: nowrap; text-align: right; }
+
+.inv-record-card,
+.inv-template-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  margin-bottom: 8px;
+}
+
+.inv-record-card.archived,
+.inv-template-card.archived { opacity: 0.6; }
+
+.inv-record-card .meta,
+.inv-template-card .meta {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.inv-record-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.inv-record-detail-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.inv-record-detail-meta {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  @page { size: A4 portrait; margin: 18mm; }
+}
+

@@ -2,7 +2,8 @@
    app.js — main application logic
    ============================================================ */
 
-const PAGES = ['journal', 'categories', 'reports', 'issues', 'plans', 'tasks', 'archive', 'settings'];
+const PAGES = ['journal', 'categories', 'reports', 'issues', 'plans', 'tasks',
+  'inventory', 'inventory-templates', 'archive', 'settings'];
 /** Относительный путь к файлу обмена (Electron): см. main.js EXCHANGE_DIR / EXCHANGE_FILENAME */
 const EXCHANGE_FILE_REL = 'journal-exchange/work-journal-backup.json';
 
@@ -50,6 +51,8 @@ async function refresh() {
   populateReportCatSelect();
   await reconcileTasksWithSources();
   if (currentPage === 'tasks') await renderTasks();
+  if (currentPage === 'inventory' && typeof renderInventoryPage === 'function') await renderInventoryPage();
+  if (currentPage === 'inventory-templates' && typeof renderInventoryTemplatesPage === 'function') await renderInventoryTemplatesPage();
 }
 
 function updateHeaderDate() {
@@ -91,8 +94,10 @@ function updateStats() {
    ============================================================ */
 function showPage(page) {
   PAGES.forEach(p => {
-    document.getElementById('page-' + p).classList.toggle('hidden', p !== page);
-    document.getElementById('nav-'  + p).classList.toggle('active',  p === page);
+    const pageEl = document.getElementById('page-' + p);
+    const navEl  = document.getElementById('nav-'  + p);
+    if (pageEl) pageEl.classList.toggle('hidden', p !== page);
+    if (navEl)  navEl.classList.toggle('active',  p === page);
   });
   currentPage = page;
 
@@ -120,6 +125,12 @@ function showPage(page) {
   }
   if (page === 'tasks') {
     renderTasks();
+  }
+  if (page === 'inventory' && typeof renderInventoryPage === 'function') {
+    renderInventoryPage();
+  }
+  if (page === 'inventory-templates' && typeof renderInventoryTemplatesPage === 'function') {
+    renderInventoryTemplatesPage();
   }
   if (page === 'settings') {
     updateElectronDbInfo();
@@ -502,7 +513,7 @@ function clearPresetActive() {
    EXPORT / IMPORT  (экспорт — отдельный файл; зеркало только work-journal-db.json)
    ============================================================ */
 
-const EXPORT_FORMAT_VERSION = 3;
+const EXPORT_FORMAT_VERSION = 4;
 
 async function gatherExportPayload() {
   const out = await dbReadAllForExport();
@@ -515,6 +526,8 @@ async function gatherExportPayload() {
     plans:      out.plans,
     snapshots:  out.snapshots,
     tasks:      out.tasks,
+    inventoryTemplates: out.inventoryTemplates || [],
+    inventoryRecords:   out.inventoryRecords   || [],
   };
 }
 
@@ -534,6 +547,8 @@ async function applyImportedPayload(data, opts = {}) {
   await dbClear('plans');
   await dbClear('snapshots');
   await dbClear('tasks');
+  await dbClear('inventoryTemplates');
+  await dbClear('inventoryRecords');
 
   for (const e of data.entries) await dbAdd('entries', e);
   for (const c of data.categories) await dbAdd('categories', c);
@@ -542,10 +557,14 @@ async function applyImportedPayload(data, opts = {}) {
   const plans = Array.isArray(data.plans) ? data.plans : [];
   const snapshots = Array.isArray(data.snapshots) ? data.snapshots : [];
   const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+  const invTpls = Array.isArray(data.inventoryTemplates) ? data.inventoryTemplates : [];
+  const invRecs = Array.isArray(data.inventoryRecords)   ? data.inventoryRecords   : [];
   for (const i of issues) await dbAdd('issues', i);
   for (const p of plans) await dbAdd('plans', p);
   for (const s of snapshots) await dbAdd('snapshots', s);
   for (const t of tasks) await dbAdd('tasks', t);
+  for (const t of invTpls) await dbAdd('inventoryTemplates', t);
+  for (const r of invRecs) await dbAdd('inventoryRecords',   r);
 
   await refresh();
   return true;
@@ -691,6 +710,8 @@ async function clearAllData() {
   await dbClear('issues');
   await dbClear('plans');
   await dbClear('tasks');
+  await dbClear('inventoryTemplates');
+  await dbClear('inventoryRecords');
   await dbClear('snapshots');
   await refresh();
   toast(L.toast_cleared, 'success');
