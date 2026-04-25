@@ -363,10 +363,10 @@ function showInventoryTemplateModal() {
       ? (L.inv_modal_template_edit_title || 'Редактирование шаблона')
       : (L.inv_modal_template_new_title  || 'Новый шаблон');
   }
-  document.getElementById('invTplName').value = invTplEditing.name;
+  document.getElementById('invTemplateNameInput').value = invTplEditing.name;
   renderInventoryTemplateFieldsList();
   document.getElementById('invTemplateModal')?.classList.add('open');
-  setTimeout(() => document.getElementById('invTplName')?.focus(), 50);
+  setTimeout(() => document.getElementById('invTemplateNameInput')?.focus(), 50);
 }
 
 function closeInventoryTemplateModal() {
@@ -591,7 +591,7 @@ function removeInventoryTemplateCompositePart(idx, partIdx) {
 
 async function saveInventoryTemplateModal() {
   if (!invTplEditing) return;
-  const name = (document.getElementById('invTplName')?.value || '').trim();
+  const name = (document.getElementById('invTemplateNameInput')?.value || '').trim();
   const desc = '';
   if (!name) { invToast(L.inv_err_template_name_required || 'Укажите название шаблона', 'error'); return; }
   const fields = (invTplEditing.fields || []).filter(f => (f.label || '').trim());
