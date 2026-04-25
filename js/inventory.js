@@ -283,7 +283,6 @@ async function renderInventoryTemplatesPage() {
     const fields = Array.isArray(t.fields) ? t.fields : [];
     const fieldList = fields.map(f => `${invEsc(f.label || f.name || '')} <span style="color:var(--text-dim);">(${invEsc(invFieldTypeLabel(f.type))})</span>`).join(', ');
     const archBadge = t.archived ? `<span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text-dim);padding:2px 8px;border-radius:10px;margin-left:8px;font-size:11px;">${invEsc(L.inv_tpl_badge_archived || 'архив')}</span>` : '';
-    const desc = t.desc ? `<div class="meta">${invEsc(t.desc)}</div>` : '';
     const archBtn = t.archived
       ? `<button class="btn btn-ghost btn-sm" onclick="restoreInventoryTemplate(${t.id})">${invEsc(L.inv_btn_restore || 'Восстановить')}</button>`
       : `<button class="btn btn-ghost btn-sm" onclick="archiveInventoryTemplate(${t.id})">${invEsc(L.inv_btn_archive || 'В архив')}</button>`;
@@ -291,7 +290,6 @@ async function renderInventoryTemplatesPage() {
       <div class="inv-template-card ${t.archived ? 'archived' : ''}" id="inv-tpl-${t.id}">
         <div style="flex:1;min-width:0;">
           <div style="font-weight:600;">${invEsc(invTplName(t))}${archBadge}</div>
-          ${desc}
           <div class="meta">${invEsc(L.inv_tpl_fields_label || 'Поля')}: ${fieldList || '<em style="color:var(--text-dim);">—</em>'}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;">
@@ -305,13 +303,12 @@ async function renderInventoryTemplatesPage() {
 
 /* --- редактор шаблона --- */
 
-let invTplEditing = null; // { id|null, name, desc, archived, fields:[{key,label,type,options?,unit?,required?}] }
+let invTplEditing = null; // { id|null, name, archived, fields:[{key,label,type,options?,unit?,required?}] }
 
 function openInventoryTemplateCreate() {
   invTplEditing = {
     id: null,
     name: '',
-    desc: '',
     archived: false,
     fields: [],
   };
@@ -327,7 +324,7 @@ async function duplicateInventoryTemplate(id) {
   const fields = invNormalizeTemplateFields(t.fields || []).map(f => ({ ...f, key: invUuid() }));
   await dbAddInventoryTemplate({
     name,
-    desc: t.desc || '',
+    desc: '',
     archived: false,
     fields,
     createdAt: now,
@@ -349,7 +346,6 @@ async function openInventoryTemplateEdit(id) {
   invTplEditing = {
     id: t.id,
     name: t.name || '',
-    desc: t.desc || '',
     archived: !!t.archived,
     fields: norm.map(f => ({
       ...f,
@@ -368,7 +364,6 @@ function showInventoryTemplateModal() {
       : (L.inv_modal_template_new_title  || 'Новый шаблон');
   }
   document.getElementById('invTplName').value = invTplEditing.name;
-  document.getElementById('invTplDesc').value = invTplEditing.desc;
   renderInventoryTemplateFieldsList();
   document.getElementById('invTemplateModal')?.classList.add('open');
   setTimeout(() => document.getElementById('invTplName')?.focus(), 50);
@@ -597,11 +592,9 @@ function removeInventoryTemplateCompositePart(idx, partIdx) {
 async function saveInventoryTemplateModal() {
   if (!invTplEditing) return;
   const name = (document.getElementById('invTplName')?.value || '').trim();
-  const desc = (document.getElementById('invTplDesc')?.value || '').trim();
+  const desc = '';
   if (!name) { invToast(L.inv_err_template_name_required || 'Укажите название шаблона', 'error'); return; }
   const fields = (invTplEditing.fields || []).filter(f => (f.label || '').trim());
-  if (fields.length === 0) { invToast(L.inv_err_template_fields_required || 'Добавьте хотя бы одно поле', 'error'); return; }
-
   const cleanFields = invNormalizeTemplateFields(fields);
 
   const now = invNowIso();
@@ -781,7 +774,7 @@ async function saveInventoryRecordCreateModal() {
     templateId: tplId,
     templateSnapshot: {
       name: tpl.name,
-      desc: tpl.desc || '',
+      desc: '',
       fields: invNormalizeTemplateFields((tpl.fields || []).map(f => ({ ...f, key: f.key || invUuid() }))),
     },
     name,
@@ -1382,37 +1375,10 @@ async function saveInventoryDictionary(slug) {
   invScheduleSave();
 }
 
-/* ============================================================
-   СИДИРОВАНИЕ ПРЕДУСТАНОВЛЕННОГО ШАБЛОНА
-   ============================================================ */
-async function ensureDefaultInventoryTemplate() {
-  try {
-    const all = await dbGetAllInventoryTemplates();
-    if (all && all.length > 0) return;
-    const now = invNowIso();
-    await dbAddInventoryTemplate({
-      name: L.inv_seed_tpl_name || 'Запасные части (минимум)',
-      desc: L.inv_seed_tpl_desc || 'Базовый шаблон. Можно изменить или удалить.',
-      archived: false,
-      fields: [
-        { key: invUuid(), label: L.inv_seed_field_desc || 'Описание',         type: 'text',   required: true },
-        { key: invUuid(), label: L.inv_seed_field_part || 'Номер по каталогу', type: 'text',   required: false },
-        { key: invUuid(), label: L.inv_seed_field_qty  || 'Количество',       type: 'number', required: false, unitMode: 'free', unit: L.inv_seed_unit_pcs || 'шт' },
-        { key: invUuid(), label: L.inv_seed_field_loc  || 'Место хранения',   type: 'select', required: false, selectSource: 'dictionary', dictionarySlug: INV_DICT_SLUG.STORAGE },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    });
-    invScheduleSave();
-  } catch (e) {
-    console.error('[ensureDefaultInventoryTemplate]', e);
-  }
-}
-
-// Инициализация: дождаться готовности IndexedDB (db задаётся в db.js initDB) и засеять справочники + шаблон
+// Инициализация: дождаться готовности IndexedDB (db задаётся в db.js initDB) и засеять справочники по умолчанию при отсутствии
 function _invWaitForDbAndSeed(triesLeft) {
   if (typeof db !== 'undefined' && db) {
-    ensureInventoryDictionaries().then(() => ensureDefaultInventoryTemplate());
+    ensureInventoryDictionaries();
     return;
   }
   if (triesLeft <= 0) return;
