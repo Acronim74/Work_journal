@@ -169,8 +169,9 @@ async function renderInventoryTemplatesPage() {
           ${desc}
           <div class="meta">${invEsc(L.inv_tpl_fields_label || 'Поля')}: ${fieldList || '<em style="color:var(--text-dim);">—</em>'}</div>
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0;">
+        <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" onclick="openInventoryTemplateEdit(${t.id})">${invEsc(L.inv_btn_edit_short || 'Изм.')}</button>
+          <button class="btn btn-ghost btn-sm" onclick="duplicateInventoryTemplate(${t.id})">${invEsc(L.inv_btn_duplicate_template || 'Копия')}</button>
           ${archBtn}
         </div>
       </div>`;
@@ -187,12 +188,32 @@ function openInventoryTemplateCreate() {
     name: '',
     desc: '',
     archived: false,
-    fields: [
-      { key: invUuid(), label: L.inv_default_field_desc  || 'Описание',   type: 'text',   required: true },
-      { key: invUuid(), label: L.inv_default_field_qty   || 'Количество', type: 'number', required: false, unit: 'шт' },
-    ],
+    fields: [],
   };
   showInventoryTemplateModal();
+}
+
+async function duplicateInventoryTemplate(id) {
+  const t = await dbGetInventoryTemplate(id);
+  if (!t) return;
+  const suffix = L.inv_tpl_copy_suffix || ' (копия)';
+  const name = String(t.name || '').trim() + suffix;
+  const now = invNowIso();
+  const fields = invNormalizeTemplateFields(t.fields || []).map(f => ({ ...f, key: invUuid() }));
+  await dbAddInventoryTemplate({
+    name,
+    desc: t.desc || '',
+    archived: false,
+    fields,
+    createdAt: now,
+    updatedAt: now,
+  });
+  invToast(L.inv_toast_template_duplicated || 'Шаблон скопирован', 'success');
+  invScheduleSave();
+  await renderInventoryTemplatesPage();
+  if (typeof currentPage !== 'undefined' && currentPage === 'inventory' && typeof renderInventoryPage === 'function') {
+    await renderInventoryPage();
+  }
 }
 
 async function openInventoryTemplateEdit(id) {
@@ -238,7 +259,10 @@ function renderInventoryTemplateFieldsList() {
   const wrap = document.getElementById('invTplFieldsList');
   if (!wrap || !invTplEditing) return;
   if (invTplEditing.fields.length === 0) {
-    wrap.innerHTML = `<div style="color:var(--text-dim);font-size:12px;">${invEsc(L.inv_tpl_no_fields || 'Поля не добавлены')}</div>`;
+    wrap.innerHTML = `
+      <div class="inv-tpl-empty-hint">
+        <div>${invEsc(L.inv_tpl_empty_editor_hint || 'Добавьте поля кнопкой ниже — название столбца, тип (текст, число, список и т.д.).')}</div>
+      </div>`;
     return;
   }
   wrap.innerHTML = invTplEditing.fields.map((f, idx) => {

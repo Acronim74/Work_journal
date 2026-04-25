@@ -1646,6 +1646,16 @@ a.btn { text-decoration: none; }
   margin-bottom: 8px;
 }
 
+.inv-tpl-empty-hint {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-alt, rgba(255,255,255,0.02));
+}
+
 .inv-field-row {
   display: grid;
   grid-template-columns: 1.6fr 1fr 1fr auto auto;
