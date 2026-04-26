@@ -98,6 +98,15 @@ const LANG_EN = {
   report_section_notes: 'Notes:',
   report_plan_dates_label: 'Planned:',
 
+  settings_linked_file_label: 'File-based database (no server)',
+  settings_linked_file_desc: 'Point to a JSON file in a shared folder (network drive, etc.) once. Works in Chrome and Microsoft Edge. Export, import and auto-save will use this file without Node.',
+  settings_link_db_open: 'Open existing .json',
+  settings_link_db_new: 'Create work-journal-db.json',
+  settings_unlink_db_file: 'Unlink file',
+  settings_linked_file_unsupported: 'Requires Chrome or Microsoft Edge. In other browsers use Import and download .json.',
+  settings_linked_file_active: (name) => `Linked file: ${name}`,
+  settings_linked_file_none: 'No file linked — using browser-only data.',
+
   settings_electron_db_desc: 'Live mirror: work-journal-db.json next to the app. Transfer backup: journal-exchange folder.',
   settings_export_label: 'Export database',
   settings_export_desc: 'Desktop: writes journal-exchange/work-journal-backup.json. Browser: downloads JSON.',
@@ -366,6 +375,7 @@ LANG_EN.inv_modal_template_title = 'Inventory template';
 LANG_EN.inv_modal_template_new_title = 'New template';
 LANG_EN.inv_modal_template_edit_title = 'Edit template';
 LANG_EN.inv_modal_new_record_title = 'New record';
+LANG_EN.inv_modal_rename_record_title = 'Rename record';
 LANG_EN.inv_modal_item_title = 'Inventory item';
 LANG_EN.inv_modal_item_add_title = 'New item';
 LANG_EN.inv_modal_item_edit_title = 'Edit item';
@@ -411,6 +421,8 @@ LANG_EN.inv_dict_title_units = 'Units of measure';
 LANG_EN.inv_dict_one_per_line = 'One value per line.';
 LANG_EN.inv_dict_btn_new = '+ New dictionary';
 LANG_EN.inv_dict_new_name_prompt = 'Dictionary name (as shown in pick lists):';
+LANG_EN.inv_dict_name_input_placeholder = 'e.g. Fastener types';
+LANG_EN.inv_err_dict_name_required = 'Enter a dictionary name';
 LANG_EN.inv_dict_title_label = 'Display name';
 LANG_EN.inv_dict_slug_label = 'Code';
 LANG_EN.inv_dict_delete = 'Delete';

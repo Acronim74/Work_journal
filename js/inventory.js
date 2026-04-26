@@ -920,13 +920,43 @@ function invItemValueText(item, field) {
 async function renameInventoryRecord(id) {
   const rec = await dbGetInventoryRecord(id);
   if (!rec) return;
-  const newName = window.prompt(L.inv_prompt_rename_record || 'Новое название описи:', rec.name || '');
-  if (newName === null) return;
-  const trimmed = String(newName).trim();
-  if (!trimmed) { invToast(L.inv_err_record_name_required || 'Укажите название описи', 'error'); return; }
+  dismissInventoryModals('recordRename');
+  invRecordRenameId = id;
+  const input = document.getElementById('invRecordRenameInput');
+  if (input) input.value = rec.name || '';
+  document.getElementById('invRecordRenameModal')?.classList.add('open');
+  setTimeout(() => {
+    input?.focus();
+    if (input && typeof input.select === 'function') input.select();
+  }, 50);
+}
+
+function closeInvRecordRenameModal() {
+  invRecordRenameId = null;
+  document.getElementById('invRecordRenameModal')?.classList.remove('open');
+}
+
+async function confirmInvRecordRenameModal() {
+  const id = invRecordRenameId;
+  if (id == null) {
+    closeInvRecordRenameModal();
+    return;
+  }
+  const raw = document.getElementById('invRecordRenameInput')?.value ?? '';
+  const trimmed = String(raw).trim();
+  if (!trimmed) {
+    invToast(L.inv_err_record_name_required || 'Укажите название описи', 'error');
+    return;
+  }
+  const rec = await dbGetInventoryRecord(id);
+  if (!rec) {
+    closeInvRecordRenameModal();
+    return;
+  }
   rec.name = trimmed;
   rec.updatedAt = invNowIso();
   await dbPutInventoryRecord(rec);
+  closeInvRecordRenameModal();
   invToast(L.inv_toast_record_renamed || 'Опись переименована', 'success');
   invScheduleSave();
   await renderInventoryRecordDetail(id);
@@ -937,6 +967,7 @@ async function renameInventoryRecord(id) {
    ============================================================ */
 
 let invItemEditing = null; // { recordId, itemId|null, values:{}, _origValues:{} }
+let invRecordRenameId = null; // id описи для модалки переименования
 
 /** Закрыть прочие модалки инвентаризации, чтобы оверлеи не перекрывали друг друга (иначе «поля не кликаются»). */
 function dismissInventoryModals(keep) {
@@ -951,6 +982,44 @@ function dismissInventoryModals(keep) {
   if (keep !== 'recordCreate') {
     document.getElementById('invRecordCreateModal')?.classList.remove('open');
   }
+  if (keep !== 'dictCreate') {
+    document.getElementById('invDictCreateModal')?.classList.remove('open');
+  }
+  if (keep !== 'recordRename') {
+    document.getElementById('invRecordRenameModal')?.classList.remove('open');
+    invRecordRenameId = null;
+  }
+}
+
+function openInvDictCreateModal() {
+  dismissInventoryModals('dictCreate');
+  const input = document.getElementById('invDictCreateNameInput');
+  if (input) input.value = '';
+  document.getElementById('invDictCreateModal')?.classList.add('open');
+  setTimeout(() => input?.focus(), 50);
+}
+
+function closeInvDictCreateModal() {
+  document.getElementById('invDictCreateModal')?.classList.remove('open');
+}
+
+async function confirmInvDictCreateModal() {
+  const raw = document.getElementById('invDictCreateNameInput')?.value ?? '';
+  const title = String(raw).trim();
+  if (!title) {
+    invToast(L.inv_err_dict_name_required || 'Укажите название справочника', 'error');
+    return;
+  }
+  let slug = 'd_' + Math.random().toString(36).slice(2, 11);
+  for (let n = 0; n < 20 && await dbGetDictionary(slug); n++) {
+    slug = 'd_' + Math.random().toString(36).slice(2, 11);
+  }
+  await dbPutDictionary({ slug, title, values: [], updatedAt: invNowIso() });
+  closeInvDictCreateModal();
+  invToast(L.inv_toast_dictionary_created || 'Справочник создан', 'success');
+  invScheduleSave();
+  _invDictSelectCache = null;
+  await renderDictionariesPage();
 }
 
 async function openInventoryItemAdd(recordId) {
@@ -1445,20 +1514,8 @@ async function renderDictionariesPage() {
   _invDictSelectCache = null;
 }
 
-async function createInventoryDictionaryFromUi() {
-  const raw = prompt(L.inv_dict_new_name_prompt || 'Название справочника:', '');
-  if (raw == null) return;
-  const title = String(raw).trim();
-  if (!title) return;
-  let slug = 'd_' + Math.random().toString(36).slice(2, 11);
-  for (let n = 0; n < 20 && await dbGetDictionary(slug); n++) {
-    slug = 'd_' + Math.random().toString(36).slice(2, 11);
-  }
-  await dbPutDictionary({ slug, title, values: [], updatedAt: invNowIso() });
-  invToast(L.inv_toast_dictionary_created || 'Справочник создан', 'success');
-  invScheduleSave();
-  _invDictSelectCache = null;
-  await renderDictionariesPage();
+function createInventoryDictionaryFromUi() {
+  openInvDictCreateModal();
 }
 
 async function deleteInventoryDictionary(slug) {
@@ -1498,4 +1555,20 @@ function _invWaitForDbAndSeed(triesLeft) {
   if (triesLeft <= 0) return;
   setTimeout(() => _invWaitForDbAndSeed(triesLeft - 1), 250);
 }
-document.addEventListener('DOMContentLoaded', () => { _invWaitForDbAndSeed(40); });
+document.addEventListener('DOMContentLoaded', () => {
+  _invWaitForDbAndSeed(40);
+
+  // Click outside modal → close (consistent with non-inventory modals)
+  const _invClickOutside = [
+    ['invTemplateModal',     closeInventoryTemplateModal],
+    ['invRecordCreateModal', closeInventoryRecordCreateModal],
+    ['invItemModal',         closeInventoryItemModal],
+    ['invRecordRenameModal', closeInvRecordRenameModal],
+    ['invDictCreateModal',   closeInvDictCreateModal],
+  ];
+  for (const [id, fn] of _invClickOutside) {
+    document.getElementById(id)?.addEventListener('click', e => {
+      if (e.target === e.currentTarget) fn();
+    });
+  }
+});

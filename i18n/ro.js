@@ -98,6 +98,15 @@ const LANG_RO = {
   report_section_notes: 'Note:',
   report_plan_dates_label: 'Planificate:',
 
+  settings_linked_file_label: 'Bază de date fișier (fără server)',
+  settings_linked_file_desc: 'Indicați o dată un fișier JSON într-un folder partajat (unitate de rețea etc.). Funcționează în Chrome și Microsoft Edge. Exportul, importul și salvarea automată vor folosi acest fișier fără Node.',
+  settings_link_db_open: 'Deschide .json existent',
+  settings_link_db_new: 'Creează work-journal-db.json',
+  settings_unlink_db_file: 'Dezleagă fișierul',
+  settings_linked_file_unsupported: 'Necesită Chrome sau Microsoft Edge. În alte browsere folosiți Import și descărcați .json.',
+  settings_linked_file_active: (name) => `Fișier legat: ${name}`,
+  settings_linked_file_none: 'Niciun fișier legat — se folosesc doar datele din browser.',
+
   settings_electron_db_desc: 'Oglindă live: work-journal-db.json lângă aplicație. Transfer backup: dosarul journal-exchange.',
   settings_export_label: 'Exportă baza de date',
   settings_export_desc: 'Desktop: scrie journal-exchange/work-journal-backup.json. Browser: descarcă JSON.',
@@ -364,6 +373,7 @@ LANG_RO.inv_modal_template_title = 'Șablon inventar';
 LANG_RO.inv_modal_template_new_title = 'Șablon nou';
 LANG_RO.inv_modal_template_edit_title = 'Editează șablonul';
 LANG_RO.inv_modal_new_record_title = 'Registru nou';
+LANG_RO.inv_modal_rename_record_title = 'Redenumește registrul';
 LANG_RO.inv_modal_item_title = 'Poziție inventar';
 LANG_RO.inv_modal_item_add_title = 'Poziție nouă';
 LANG_RO.inv_modal_item_edit_title = 'Editează poziția';
@@ -409,6 +419,8 @@ LANG_RO.inv_dict_title_units = 'Unități de măsură';
 LANG_RO.inv_dict_one_per_line = 'O valoare pe linie.';
 LANG_RO.inv_dict_btn_new = '+ Dicționar nou';
 LANG_RO.inv_dict_new_name_prompt = 'Numele dicționarului (ca în liste):';
+LANG_RO.inv_dict_name_input_placeholder = 'ex.: Tipuri de fixări';
+LANG_RO.inv_err_dict_name_required = 'Introdu numele dicționarului';
 LANG_RO.inv_dict_title_label = 'Nume afișat';
 LANG_RO.inv_dict_slug_label = 'Cod';
 LANG_RO.inv_dict_delete = 'Șterge';

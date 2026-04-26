@@ -98,6 +98,15 @@ const LANG_PL = {
   report_section_notes: 'Notatki:',
   report_plan_dates_label: 'Termin:',
 
+  settings_linked_file_label: 'Plik bazy bez serwera',
+  settings_linked_file_desc: 'Wskaż plik JSON we współdzielonym folderze (dysk sieciowy itp.) raz. Działa w Chrome i Microsoft Edge. Eksport, import i autozapis będą używać tego pliku bez Node.',
+  settings_link_db_open: 'Wskaż istniejący .json',
+  settings_link_db_new: 'Utwórz work-journal-db.json',
+  settings_unlink_db_file: 'Odepnij plik',
+  settings_linked_file_unsupported: 'Wymagany Chrome lub Microsoft Edge. W innych przeglądarkach użyj importu i pobierz .json.',
+  settings_linked_file_active: (name) => `Powiązany plik: ${name}`,
+  settings_linked_file_none: 'Brak powiązanego pliku — używane są tylko dane w tej przeglądarce.',
+
   settings_electron_db_desc: 'Baza robocza: work-journal-db.json obok programu. Kopia do przeniesienia: folder journal-exchange.',
   settings_export_label: 'Eksport bazy danych',
   settings_export_desc: 'Wersja na PC: plik journal-exchange/work-journal-backup.json. Przeglądarka: pobranie JSON.',
@@ -366,6 +375,7 @@ LANG_PL.inv_modal_template_title = 'Szablon spisu';
 LANG_PL.inv_modal_template_new_title = 'Nowy szablon';
 LANG_PL.inv_modal_template_edit_title = 'Edycja szablonu';
 LANG_PL.inv_modal_new_record_title = 'Nowy spis';
+LANG_PL.inv_modal_rename_record_title = 'Zmień nazwę spisu';
 LANG_PL.inv_modal_item_title = 'Pozycja spisu';
 LANG_PL.inv_modal_item_add_title = 'Nowa pozycja';
 LANG_PL.inv_modal_item_edit_title = 'Edycja pozycji';
@@ -411,6 +421,8 @@ LANG_PL.inv_dict_title_units = 'Jednostki miary';
 LANG_PL.inv_dict_one_per_line = 'Jedna wartość w wierszu.';
 LANG_PL.inv_dict_btn_new = '+ Nowy słownik';
 LANG_PL.inv_dict_new_name_prompt = 'Nazwa słownika (jak na listach wyboru):';
+LANG_PL.inv_dict_name_input_placeholder = 'np. Rodzaje mocowań';
+LANG_PL.inv_err_dict_name_required = 'Podaj nazwę słownika';
 LANG_PL.inv_dict_title_label = 'Nazwa na listach';
 LANG_PL.inv_dict_slug_label = 'Kod';
 LANG_PL.inv_dict_delete = 'Usuń';

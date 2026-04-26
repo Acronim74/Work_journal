@@ -104,10 +104,11 @@ function showPage(page) {
   });
   currentPage = page;
 
-  const invSection = new Set(['inventory', 'inventory-templates', 'dictionaries']);
-  if (invSection.has(prevPage) && !invSection.has(page) && typeof dismissInventoryModals === 'function') {
-    dismissInventoryModals(null);
-  }
+  // Close all open modals on any navigation
+  cancelEntryModal(); closeCatModal(); closeViewModal();
+  cancelIssueModal(); cancelResolveIssueModal(); closePlanModal(); cancelResolvePlanModal();
+  closeTaskCreateModal(); closeTaskAppendModal(); cancelTaskCompleteModal();
+  if (typeof dismissInventoryModals === 'function') dismissInventoryModals(null);
 
   // Auto-fill "this month" when opening reports for the first time
   if (page === 'reports') {
@@ -1539,6 +1540,8 @@ document.addEventListener('keydown', e => {
     if (typeof closeInventoryTemplateModal === 'function') closeInventoryTemplateModal();
     if (typeof closeInventoryRecordCreateModal === 'function') closeInventoryRecordCreateModal();
     if (typeof closeInventoryItemModal === 'function') closeInventoryItemModal();
+    if (typeof closeInvRecordRenameModal === 'function') closeInvRecordRenameModal();
+    if (typeof closeInvDictCreateModal === 'function') closeInvDictCreateModal();
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     if (document.getElementById('entryModal').classList.contains('open')) saveEntry();
@@ -1553,32 +1556,32 @@ document.addEventListener('keydown', e => {
   }
 });
 
-document.getElementById('entryModal').addEventListener('click', e => {
-  if (e.target === document.getElementById('entryModal')) cancelEntryModal();
+document.getElementById('entryModal')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) cancelEntryModal();
 });
-document.getElementById('catModal').addEventListener('click', e => {
-  if (e.target === document.getElementById('catModal')) closeCatModal();
+document.getElementById('catModal')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeCatModal();
 });
-document.getElementById('issueModal').addEventListener('click', e => {
-  if (e.target === document.getElementById('issueModal')) cancelIssueModal();
+document.getElementById('issueModal')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) cancelIssueModal();
 });
-document.getElementById('planModal').addEventListener('click', e => {
-  if (e.target === document.getElementById('planModal')) closePlanModal();
+document.getElementById('planModal')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) closePlanModal();
 });
 document.getElementById('issueResolveModal')?.addEventListener('click', e => {
-  if (e.target === document.getElementById('issueResolveModal')) cancelResolveIssueModal();
+  if (e.target === e.currentTarget) cancelResolveIssueModal();
 });
 document.getElementById('planResolveModal')?.addEventListener('click', e => {
-  if (e.target === document.getElementById('planResolveModal')) cancelResolvePlanModal();
+  if (e.target === e.currentTarget) cancelResolvePlanModal();
 });
 document.getElementById('taskCreateModal')?.addEventListener('click', e => {
-  if (e.target === document.getElementById('taskCreateModal')) closeTaskCreateModal();
+  if (e.target === e.currentTarget) closeTaskCreateModal();
 });
 document.getElementById('taskAppendModal')?.addEventListener('click', e => {
-  if (e.target === document.getElementById('taskAppendModal')) closeTaskAppendModal();
+  if (e.target === e.currentTarget) closeTaskAppendModal();
 });
 document.getElementById('taskCompleteModal')?.addEventListener('click', e => {
-  if (e.target === document.getElementById('taskCompleteModal')) cancelTaskCompleteModal();
+  if (e.target === e.currentTarget) cancelTaskCompleteModal();
 });
 
 document.getElementById('btnOpenNewEntry')?.addEventListener('click', () => openEntryModal());

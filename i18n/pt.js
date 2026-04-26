@@ -98,6 +98,15 @@ const LANG_PT = {
   report_section_notes: 'Notas:',
   report_plan_dates_label: 'Planejado:',
 
+  settings_linked_file_label: 'Banco de dados em arquivo (sem servidor)',
+  settings_linked_file_desc: 'Indique um arquivo JSON em uma pasta compartilhada (unidade de rede, etc.) uma vez. Funciona no Chrome e Microsoft Edge. Exportar, importar e salvar automaticamente usarão este arquivo sem Node.',
+  settings_link_db_open: 'Abrir .json existente',
+  settings_link_db_new: 'Criar work-journal-db.json',
+  settings_unlink_db_file: 'Desvincular arquivo',
+  settings_linked_file_unsupported: 'Requer Chrome ou Microsoft Edge. Em outros navegadores use Importar e baixe o .json.',
+  settings_linked_file_active: (name) => `Arquivo vinculado: ${name}`,
+  settings_linked_file_none: 'Nenhum arquivo vinculado — usando apenas dados do navegador.',
+
   settings_electron_db_desc: 'Espelho ao vivo: work-journal-db.json ao lado do app. Backup de transferência: pasta journal-exchange.',
   settings_export_label: 'Exportar banco de dados',
   settings_export_desc: 'Desktop: grava journal-exchange/work-journal-backup.json. Navegador: baixa JSON.',
@@ -364,6 +373,7 @@ LANG_PT.inv_modal_template_title = 'Modelo de inventário';
 LANG_PT.inv_modal_template_new_title = 'Novo modelo';
 LANG_PT.inv_modal_template_edit_title = 'Editar modelo';
 LANG_PT.inv_modal_new_record_title = 'Novo registro';
+LANG_PT.inv_modal_rename_record_title = 'Renomear registro';
 LANG_PT.inv_modal_item_title = 'Item do inventário';
 LANG_PT.inv_modal_item_add_title = 'Novo item';
 LANG_PT.inv_modal_item_edit_title = 'Editar item';
@@ -409,6 +419,8 @@ LANG_PT.inv_dict_title_units = 'Unidades de medida';
 LANG_PT.inv_dict_one_per_line = 'Um valor por linha.';
 LANG_PT.inv_dict_btn_new = '+ Novo dicionário';
 LANG_PT.inv_dict_new_name_prompt = 'Nome do dicionário (como nas listas):';
+LANG_PT.inv_dict_name_input_placeholder = 'ex.: Tipos de fixação';
+LANG_PT.inv_err_dict_name_required = 'Indique o nome do dicionário';
 LANG_PT.inv_dict_title_label = 'Nome exibido';
 LANG_PT.inv_dict_slug_label = 'Código';
 LANG_PT.inv_dict_delete = 'Excluir';
