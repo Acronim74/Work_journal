@@ -306,6 +306,7 @@ async function renderInventoryTemplatesPage() {
 let invTplEditing = null; // { id|null, name, archived, fields:[{key,label,type,options?,unit?,required?}] }
 
 function openInventoryTemplateCreate() {
+  dismissInventoryModals('template');
   invTplEditing = {
     id: null,
     name: '',
@@ -339,6 +340,7 @@ async function duplicateInventoryTemplate(id) {
 }
 
 async function openInventoryTemplateEdit(id) {
+  dismissInventoryModals('template');
   const t = await dbGetInventoryTemplate(id);
   if (!t) return;
   const raw = (Array.isArray(t.fields) ? t.fields : []).map(f => ({ ...f, key: f.key || invUuid() }));
@@ -363,7 +365,8 @@ function showInventoryTemplateModal() {
       ? (L.inv_modal_template_edit_title || 'Редактирование шаблона')
       : (L.inv_modal_template_new_title  || 'Новый шаблон');
   }
-  document.getElementById('invTemplateNameInput').value = invTplEditing.name;
+  const nameEl = document.getElementById('invTemplateNameInput');
+  if (nameEl) nameEl.value = invTplEditing.name || '';
   renderInventoryTemplateFieldsList();
   document.getElementById('invTemplateModal')?.classList.add('open');
   setTimeout(() => document.getElementById('invTemplateNameInput')?.focus(), 50);
@@ -737,6 +740,7 @@ function clearInventoryFilters() {
 /* --- создание описи --- */
 
 async function openInventoryRecordCreate() {
+  dismissInventoryModals('recordCreate');
   const tpls = await dbGetAllInventoryTemplates();
   const active = tpls.filter(t => !t.archived);
   const sel = document.getElementById('invRecCreateTpl');
@@ -964,6 +968,21 @@ async function renameInventoryRecord(id) {
 
 let invItemEditing = null; // { recordId, itemId|null, values:{}, _origValues:{} }
 
+/** Закрыть прочие модалки инвентаризации, чтобы оверлеи не перекрывали друг друга (иначе «поля не кликаются»). */
+function dismissInventoryModals(keep) {
+  if (keep !== 'template') {
+    document.getElementById('invTemplateModal')?.classList.remove('open');
+    invTplEditing = null;
+  }
+  if (keep !== 'item') {
+    document.getElementById('invItemModal')?.classList.remove('open');
+    invItemEditing = null;
+  }
+  if (keep !== 'recordCreate') {
+    document.getElementById('invRecordCreateModal')?.classList.remove('open');
+  }
+}
+
 async function openInventoryItemAdd(recordId) {
   const rec = await dbGetInventoryRecord(recordId);
   if (!rec) return;
@@ -1011,6 +1030,7 @@ async function openInventoryItemEdit(recordId, itemId) {
 }
 
 async function showInventoryItemModal(rec, isNew) {
+  dismissInventoryModals('item');
   const titleEl = document.getElementById('invItemModalTitle');
   if (titleEl) titleEl.textContent = isNew
     ? (L.inv_modal_item_add_title  || 'Новая позиция')

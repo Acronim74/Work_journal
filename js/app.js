@@ -95,6 +95,7 @@ function updateStats() {
    NAVIGATION
    ============================================================ */
 function showPage(page) {
+  const prevPage = currentPage;
   PAGES.forEach(p => {
     const pageEl = document.getElementById('page-' + p);
     const navEl  = document.getElementById('nav-'  + p);
@@ -102,6 +103,11 @@ function showPage(page) {
     if (navEl)  navEl.classList.toggle('active',  p === page);
   });
   currentPage = page;
+
+  const invSection = new Set(['inventory', 'inventory-templates', 'dictionaries']);
+  if (invSection.has(prevPage) && !invSection.has(page) && typeof dismissInventoryModals === 'function') {
+    dismissInventoryModals(null);
+  }
 
   // Auto-fill "this month" when opening reports for the first time
   if (page === 'reports') {
@@ -1530,6 +1536,9 @@ document.addEventListener('keydown', e => {
     cancelEntryModal(); closeCatModal(); closeViewModal();
     cancelIssueModal(); cancelResolveIssueModal(); closePlanModal(); cancelResolvePlanModal();
     closeTaskCreateModal(); closeTaskAppendModal(); cancelTaskCompleteModal();
+    if (typeof closeInventoryTemplateModal === 'function') closeInventoryTemplateModal();
+    if (typeof closeInventoryRecordCreateModal === 'function') closeInventoryRecordCreateModal();
+    if (typeof closeInventoryItemModal === 'function') closeInventoryItemModal();
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     if (document.getElementById('entryModal').classList.contains('open')) saveEntry();
