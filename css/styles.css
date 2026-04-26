@@ -221,25 +221,6 @@ body {
 
 .sidebar-divider { height: 1px; background: var(--border); margin: 8px 12px; }
 
-.sidebar-footer {
-  margin-top: auto;
-  padding: 12px 16px 10px;
-  border-top: 1px solid var(--border);
-  font-size: 10px;
-  line-height: 1.45;
-  color: var(--text-dim);
-}
-
-.sidebar-footer-copy { margin-bottom: 2px; }
-
-.sidebar-footer-link {
-  color: var(--text-muted);
-  text-decoration: none;
-  font-size: 10px;
-  word-break: break-all;
-}
-
-.sidebar-footer-link:hover { color: var(--accent); text-decoration: underline; }
 
 .settings-copyright-block {
   margin-top: 12px;
