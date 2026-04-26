@@ -438,6 +438,7 @@ LANG_PT.inv_err_template_missing = 'Modelo não encontrado';
 LANG_PT.inv_err_template_archived = 'Modelo arquivado — escolha outro';
 LANG_PT.inv_err_no_active_templates = 'Sem modelos ativos — crie um primeiro';
 LANG_PT.inv_err_field_required = 'Campo obrigatório:';
+LANG_PT.inv_err_item_not_found = 'Item não encontrado. Feche a janela e abra o registro novamente.';
 LANG_PT.inv_err_popup_blocked = 'Permita pop-ups para imprimir';
 LANG_PT.inv_toast_template_saved = 'Modelo salvo';
 LANG_PT.inv_toast_template_duplicated = 'Modelo duplicado';

@@ -440,6 +440,7 @@ LANG_PL.inv_err_template_missing = 'Szablon nie znaleziony';
 LANG_PL.inv_err_template_archived = 'Szablon w archiwum — wybierz inny';
 LANG_PL.inv_err_no_active_templates = 'Brak aktywnych szablonów — utwórz najpierw szablon';
 LANG_PL.inv_err_field_required = 'Pole wymagane:';
+LANG_PL.inv_err_item_not_found = 'Nie znaleziono pozycji. Zamknij okno i otwórz spis ponownie.';
 LANG_PL.inv_err_popup_blocked = 'Zezwól na wyskakujące okna, aby drukować';
 LANG_PL.inv_toast_template_saved = 'Szablon zapisany';
 LANG_PL.inv_toast_template_duplicated = 'Utworzono kopię szablonu';

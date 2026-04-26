@@ -455,6 +455,7 @@ LANG_RU.inv_err_template_missing = 'Шаблон не найден';
 LANG_RU.inv_err_template_archived = 'Шаблон в архиве — выберите другой';
 LANG_RU.inv_err_no_active_templates = 'Нет активных шаблонов — создайте шаблон';
 LANG_RU.inv_err_field_required = 'Обязательное поле:';
+LANG_RU.inv_err_item_not_found = 'Позиция не найдена. Закройте окно и откройте опись снова.';
 LANG_RU.inv_err_popup_blocked = 'Откройте всплывающие окна для печати';
 LANG_RU.inv_toast_template_saved = 'Шаблон сохранён';
 LANG_RU.inv_toast_template_duplicated = 'Создана копия шаблона';

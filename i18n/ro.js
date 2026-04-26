@@ -438,6 +438,7 @@ LANG_RO.inv_err_template_missing = 'Șablon negăsit';
 LANG_RO.inv_err_template_archived = 'Șablonul este arhivat — alege altul';
 LANG_RO.inv_err_no_active_templates = 'Nu există șabloane active — creează unul mai întâi';
 LANG_RO.inv_err_field_required = 'Câmp obligatoriu:';
+LANG_RO.inv_err_item_not_found = 'Poziția nu a fost găsită. Închide fereastra și deschide registrul din nou.';
 LANG_RO.inv_err_popup_blocked = 'Permite ferestrele pop-up pentru tipărire';
 LANG_RO.inv_toast_template_saved = 'Șablon salvat';
 LANG_RO.inv_toast_template_duplicated = 'Șablon duplicat';

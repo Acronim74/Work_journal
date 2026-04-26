@@ -440,6 +440,7 @@ LANG_EN.inv_err_template_missing = 'Template not found';
 LANG_EN.inv_err_template_archived = 'Template is archived — choose another';
 LANG_EN.inv_err_no_active_templates = 'No active templates — create one first';
 LANG_EN.inv_err_field_required = 'Required field:';
+LANG_EN.inv_err_item_not_found = 'Item not found. Close the dialog and open the record again.';
 LANG_EN.inv_err_popup_blocked = 'Allow pop-ups to print';
 LANG_EN.inv_toast_template_saved = 'Template saved';
 LANG_EN.inv_toast_template_duplicated = 'Template duplicated';

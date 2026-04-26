@@ -5,6 +5,7 @@
   "author": "Work Journal",
   "main": "main.js",
   "scripts": {
+    "test": "node --test tests/inventory-logic.test.mjs",
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win",

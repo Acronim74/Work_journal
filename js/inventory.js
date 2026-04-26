@@ -2,13 +2,12 @@
    inventory.js — модуль «Инвентаризация»
    Этап 1: шаблоны (CRUD + архив), описи (живые документы),
             простая таблица позиций с подтверждениями, печать A4.
+   Нормализация полей и хелперы значений: inventory-logic.js (раньше этого скрипта).
    ============================================================ */
 
-/* ---------- Поля шаблона ---------- */
-const INV_FIELD_TYPES = ['text', 'number', 'select', 'date', 'boolean', 'multi_select', 'composite'];
-
-const INV_DICT_SLUG = { STORAGE: 'storageLocations', UNITS: 'units' };
-const INV_DICT_SYSTEM_SLUGS = new Set([INV_DICT_SLUG.STORAGE, INV_DICT_SLUG.UNITS]);
+if (typeof invNormalizeTemplateFields !== 'function') {
+  console.error('[inventory] Подключите js/inventory-logic.js перед inventory.js');
+}
 
 let _invDictSelectCache = null;
 
@@ -43,10 +42,6 @@ async function invRefreshDictSelectCache() {
   };
 }
 
-function invUuid() {
-  return 'f_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
-}
-
 function invFieldTypeLabel(type) {
   const map = {
     text:         L.inv_field_type_text          || 'Текст',
@@ -66,21 +61,6 @@ function invDictTitle(slug) {
   return slug;
 }
 
-function invDefaultEmptyValue(field) {
-  if (!field) return '';
-  if (field.type === 'multi_select') return [];
-  if (field.type === 'composite') {
-    const n = Math.max(2, (field.compositeParts || []).length || 2);
-    return Array(n).fill('');
-  }
-  if (field.type === 'number') {
-    if (field.unitMode === 'dictionary') return { amount: null, unit: '' };
-    return null;
-  }
-  if (field.type === 'boolean') return false;
-  return '';
-}
-
 async function invLoadDictionariesMap() {
   const all = await dbGetAllDictionaries();
   const m = {};
@@ -88,169 +68,6 @@ async function invLoadDictionariesMap() {
     if (d && d.slug) m[d.slug] = Array.isArray(d.values) ? d.values.filter(Boolean) : [];
   }
   return m;
-}
-
-function invFieldOptionList(field, dictMap) {
-  if (!field) return [];
-  if (field.type === 'select' || field.type === 'multi_select') {
-    if (field.selectSource === 'dictionary' && field.dictionarySlug) {
-      const slug = field.dictionarySlug;
-      return (dictMap && dictMap[slug]) ? dictMap[slug].slice() : [];
-    }
-    return Array.isArray(field.options) ? field.options.filter(Boolean) : [];
-  }
-  if (field.type === 'number' && field.unitMode === 'dictionary') {
-    if (field.unitSource === 'inline') {
-      return Array.isArray(field.options) ? field.options.filter(Boolean) : [];
-    }
-    const slug = field.dictionarySlug || INV_DICT_SLUG.UNITS;
-    return (dictMap && dictMap[slug]) ? dictMap[slug].slice() : [];
-  }
-  return [];
-}
-
-function invCompositeToArray(field, raw) {
-  const n = Math.max(2, (field.compositeParts || []).length || 2);
-  const out = Array(n).fill('');
-  if (Array.isArray(raw)) {
-    for (let i = 0; i < n; i++) out[i] = raw[i] != null ? String(raw[i]) : '';
-    return out;
-  }
-  if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) {
-    const keys = Object.keys(raw).sort();
-    for (let i = 0; i < n && i < keys.length; i++) out[i] = String(raw[keys[i]] ?? '');
-    return out;
-  }
-  if (typeof raw === 'string' && raw.trim()) {
-    const sep = field.compositeSeparator || '-';
-    const p = raw.split(sep);
-    for (let i = 0; i < n && i < p.length; i++) out[i] = p[i].trim();
-  }
-  return out;
-}
-
-function invCompositeDisplay(field, raw) {
-  const arr = invCompositeToArray(field, raw);
-  const sep = field.compositeSeparator || '-';
-  return arr.filter(s => String(s).trim()).join(sep);
-}
-
-function invIsEmptyValue(field, v) {
-  if (v === undefined || v === null || v === '') return true;
-  if (field.type === 'boolean' && v === false) return true;
-  if (field.type === 'multi_select') return !Array.isArray(v) || v.length === 0;
-  if (field.type === 'composite') {
-    return invCompositeToArray(field, v).every(p => !String(p || '').trim());
-  }
-  if (field.type === 'number' && field.unitMode === 'dictionary') {
-    if (typeof v !== 'object' || v === null) return true;
-    return v.amount == null || v.amount === '';
-  }
-  return false;
-}
-
-function invDeepClone(o) {
-  try { return JSON.parse(JSON.stringify(o)); } catch (_) { return o; }
-}
-
-/** Нормализация полей шаблона/снимка: убрать битые записи, гарантировать key и label */
-function invNormalizeTemplateFields(fields) {
-  if (!Array.isArray(fields)) return [];
-  const out = [];
-  for (const f of fields) {
-    if (!f) continue;
-    const key = String(f.key || '').trim();
-    if (!key) continue;
-    let type = INV_FIELD_TYPES.includes(f.type) ? f.type : 'text';
-    let label = String(f.label || f.name || '').trim();
-    if (!label) label = key;
-    const base = { key, label, type, required: !!f.required };
-
-    if (type === 'select' || type === 'multi_select') {
-      const src = (f.selectSource === 'dictionary') ? 'dictionary' : 'options';
-      base.selectSource = src;
-      if (src === 'dictionary') {
-        const slug = String(f.dictionarySlug || '').trim();
-        base.dictionarySlug = slug || INV_DICT_SLUG.STORAGE;
-        base.options = undefined;
-      } else {
-        base.options = Array.isArray(f.options) ? f.options.filter(Boolean) : [];
-        base.dictionarySlug = undefined;
-      }
-    }
-
-    if (type === 'number') {
-      let um = f.unitMode;
-      if (um !== 'dictionary' && um !== 'none' && um !== 'free') {
-        um = (f.unit && String(f.unit).trim()) ? 'free' : 'none';
-      }
-      base.unitMode = um;
-      if (um === 'dictionary') {
-        const us = (f.unitSource === 'inline') ? 'inline' : 'dictionary';
-        base.unitSource = us;
-        if (us === 'inline') {
-          base.options = Array.isArray(f.options) ? f.options.filter(Boolean) : [];
-          base.dictionarySlug = undefined;
-        } else {
-          base.dictionarySlug = String(f.dictionarySlug || '').trim() || INV_DICT_SLUG.UNITS;
-          base.options = undefined;
-        }
-        base.unit = '';
-      } else if (um === 'free') {
-        base.unit = f.unit != null ? String(f.unit) : '';
-        base.dictionarySlug = undefined;
-        base.unitSource = undefined;
-        base.options = undefined;
-      } else {
-        base.unit = '';
-        base.dictionarySlug = undefined;
-        base.unitSource = undefined;
-        base.options = undefined;
-      }
-    }
-
-    if (type === 'composite') {
-      let parts = Array.isArray(f.compositeParts) ? f.compositeParts.map(p => String(p || '').trim()).filter(Boolean) : [];
-      if (parts.length < 2) {
-        parts = [
-          L.inv_composite_part_default1 || 'Часть 1',
-          L.inv_composite_part_default2 || 'Часть 2',
-        ];
-      }
-      base.compositeParts = parts.slice(0, 8);
-      base.compositeSeparator = String(f.compositeSeparator || '-').slice(0, 3) || '-';
-    }
-
-    out.push(base);
-  }
-  return out;
-}
-
-/**
- * Подмешать актуальную структуру шаблона в снимок описи: новые поля в конец,
- * существующие по key — обновить подпись/тип; поля, удалённые из шаблона, в описи оставляем.
- */
-function invMergeRecordSnapshotWithTemplate(snapshotFields, templateFields) {
-  const snap = invNormalizeTemplateFields(snapshotFields);
-  const tpl  = invNormalizeTemplateFields(templateFields);
-  if (tpl.length === 0) return snap;
-  const tplByKey = new Map(tpl.map(f => [f.key, f]));
-  const merged = snap.map(f => {
-    const t = tplByKey.get(f.key);
-    return t ? { ...f, ...t, key: f.key } : { ...f };
-  });
-  const seen = new Set(snap.map(f => f.key));
-  for (const t of tpl) {
-    if (!seen.has(t.key)) {
-      merged.push({ ...t });
-      seen.add(t.key);
-    }
-  }
-  return merged;
-}
-
-function invGetRecordFields(rec) {
-  return invNormalizeTemplateFields(rec?.templateSnapshot?.fields || []);
 }
 
 async function syncInventoryRecordsAfterTemplateSave(templateId, templateFields) {
@@ -1157,8 +974,8 @@ async function openInventoryItemEdit(recordId, itemId) {
   const it = (rec.items || []).find(x => String(x.id) === String(itemId));
   if (!it) return;
   const fields = invGetRecordFields(rec);
-  const diskVals = { ...(it.values || {}) };
-  const values = { ...diskVals };
+  const diskVals = invDeepClone(it.values || {});
+  const values = invDeepClone(it.values || {});
   fields.forEach(f => {
     if (!f.key) return;
     if (!(f.key in values)) values[f.key] = invDefaultEmptyValue(f);
@@ -1193,8 +1010,73 @@ async function showInventoryItemModal(rec, isNew) {
   const fields = invGetRecordFields(rec);
   const dictMap = await invLoadDictionariesMap();
   body.innerHTML = `<div class="form-grid">${fields.map(f => renderInventoryItemFieldInput(f, dictMap)).join('')}</div>`;
+  invItemFormEnsureDelegatedHandlers();
   document.getElementById('invItemModal')?.classList.add('open');
   setTimeout(() => body.querySelector('input,select,textarea')?.focus(), 50);
+}
+
+/** Один раз вешаем делегирование: надёжнее inline oninput/onchange (dataset, всплытие). */
+function invItemFormEnsureDelegatedHandlers() {
+  const body = document.getElementById('invItemFormBody');
+  if (!body || body.dataset.invDeleg === '1') return;
+  body.dataset.invDeleg = '1';
+  body.addEventListener('input', invItemFormDelegatedInput);
+  body.addEventListener('change', invItemFormDelegatedChange);
+}
+
+function invItemFormDelegatedInput(e) {
+  const el = e.target;
+  if (!el || !invItemEditing) return;
+  if (el.tagName === 'SELECT') return;
+  const key = el.getAttribute('data-inv-key');
+  if (!key) return;
+  const partAttr = el.getAttribute('data-inv-part');
+  if (partAttr != null && partAttr !== '') {
+    onInventoryItemCompositePartChange(key, parseInt(partAttr, 10), el.value);
+    return;
+  }
+  if (el.type === 'checkbox') return;
+  if (el.type === 'date') {
+    onInventoryItemFieldChange(key, el.value, 'date');
+    return;
+  }
+  if (el.type === 'number' && el.closest('.inv-num-dict-wrap')) {
+    onInventoryItemNumDictAmount(key, el.value);
+    return;
+  }
+  if (el.type === 'number') {
+    onInventoryItemFieldChange(key, el.value, 'number');
+    return;
+  }
+  onInventoryItemFieldChange(key, el.value, 'text');
+}
+
+function invItemFormDelegatedChange(e) {
+  const el = e.target;
+  if (!el || !invItemEditing) return;
+  const key = el.getAttribute('data-inv-key');
+  if (!key) return;
+  if (el.type === 'checkbox') {
+    const opt = el.getAttribute('data-opt');
+    if (opt != null) {
+      onInventoryItemMultiToggle(key, opt, el.checked);
+      return;
+    }
+    onInventoryItemFieldChange(key, el.checked, 'boolean');
+    return;
+  }
+  if (el.tagName === 'SELECT') {
+    if (el.closest('.inv-num-dict-wrap')) {
+      onInventoryItemNumDictUnit(key, el.value);
+      return;
+    }
+    onInventoryItemFieldChange(key, el.value, 'select');
+    return;
+  }
+  if (el.type === 'date') {
+    onInventoryItemFieldChange(key, el.value, 'date');
+    return;
+  }
 }
 
 function renderInventoryItemFieldInput(field, dictMap) {
@@ -1217,18 +1099,15 @@ function renderInventoryItemFieldInput(field, dictMap) {
           invFieldOptionList(field, dictMap).map(u =>
             `<option value="${invEsc(u)}" ${String(o.unit || '') === String(u) ? 'selected' : ''}>${invEsc(u)}</option>`)
         ).join('');
-        inputHtml = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        inputHtml = `<div class="inv-num-dict-wrap" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <input type="number" step="any" class="form-input" style="min-width:120px;flex:1" id="${id}"
             value="${o.amount == null ? '' : invEsc(o.amount)}"
-            data-inv-key="${invEsc(field.key)}"
-            oninput="onInventoryItemNumDictAmount(this.dataset.invKey, this.value)">
-          <select class="form-select" style="min-width:140px;flex:1" data-inv-key="${invEsc(field.key)}"
-            onchange="onInventoryItemNumDictUnit(this.dataset.invKey, this.value)">${opts}</select>
+            data-inv-key="${invEsc(field.key)}">
+          <select class="form-select" style="min-width:140px;flex:1" data-inv-key="${invEsc(field.key)}">${opts}</select>
         </div>`;
       } else {
         inputHtml = `<input type="number" step="any" class="form-input" id="${id}" value="${val == null ? '' : invEsc(val)}"
-                          data-inv-key="${invEsc(field.key)}"
-                          oninput="onInventoryItemFieldChange(this.dataset.invKey, this.value, 'number')">`;
+                          data-inv-key="${invEsc(field.key)}">`;
       }
       break;
     case 'select': {
@@ -1239,8 +1118,7 @@ function renderInventoryItemFieldInput(field, dictMap) {
         const opts = ['<option value=""></option>'].concat(
           list.map(o => `<option value="${invEsc(o)}" ${String(val || '') === String(o) ? 'selected' : ''}>${invEsc(o)}</option>`)
         ).join('');
-        inputHtml = `<select class="form-select" id="${id}" data-inv-key="${invEsc(field.key)}"
-                            onchange="onInventoryItemFieldChange(this.dataset.invKey, this.value, 'select')">${opts}</select>`;
+        inputHtml = `<select class="form-select" id="${id}" data-inv-key="${invEsc(field.key)}">${opts}</select>`;
       }
       break;
     }
@@ -1254,8 +1132,7 @@ function renderInventoryItemFieldInput(field, dictMap) {
       inputHtml = `<div class="inv-multi-wrap">${list.map(o => {
         const ck = sel.includes(String(o)) ? 'checked' : '';
         return `<label class="checkbox-row" style="display:flex;margin:4px 0;">
-          <input type="checkbox" ${ck} data-inv-key="${invEsc(field.key)}" data-opt="${invEsc(o)}"
-            onchange="onInventoryItemMultiToggleEl(this)">
+          <input type="checkbox" ${ck} data-inv-key="${invEsc(field.key)}" data-opt="${invEsc(o)}">
           <span>${invEsc(o)}</span>
         </label>`;
       }).join('')}</div>`;
@@ -1268,26 +1145,22 @@ function renderInventoryItemFieldInput(field, dictMap) {
         <div style="flex:1;min-width:72px;">
           <div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">${invEsc(pl)}</div>
           <input type="text" class="form-input" value="${invEsc(arr[pi] || '')}"
-            data-inv-key="${invEsc(field.key)}"
-            oninput="onInventoryItemCompositePartChange(this.dataset.invKey, ${pi}, this.value)">
+            data-inv-key="${invEsc(field.key)}" data-inv-part="${pi}">
         </div>`).join('')}</div>`;
       break;
     }
     case 'date':
       inputHtml = `<input type="date" class="form-input" id="${id}" value="${invEsc(val || '')}"
-                          data-inv-key="${invEsc(field.key)}"
-                          onchange="onInventoryItemFieldChange(this.dataset.invKey, this.value, 'date')">`;
+                          data-inv-key="${invEsc(field.key)}">`;
       break;
     case 'boolean':
       inputHtml = `<label class="checkbox-row"><input type="checkbox" id="${id}" ${val ? 'checked' : ''}
-                          data-inv-key="${invEsc(field.key)}"
-                          onchange="onInventoryItemFieldChange(this.dataset.invKey, this.checked, 'boolean')"><span>${invEsc(L.inv_yes || 'Да')}</span></label>`;
+                          data-inv-key="${invEsc(field.key)}"><span>${invEsc(L.inv_yes || 'Да')}</span></label>`;
       break;
     case 'text':
     default:
       inputHtml = `<input type="text" class="form-input" id="${id}" value="${invEsc(val || '')}"
-                          data-inv-key="${invEsc(field.key)}"
-                          oninput="onInventoryItemFieldChange(this.dataset.invKey, this.value, 'text')">`;
+                          data-inv-key="${invEsc(field.key)}">`;
   }
   return `<div class="form-group full"><label class="form-label">${labelHtml}</label>${inputHtml}</div>`;
 }
@@ -1327,11 +1200,6 @@ function onInventoryItemMultiToggle(key, opt, checked) {
   else arr = arr.filter(x => x !== s);
   invItemEditing.values[key] = arr;
 }
-function onInventoryItemMultiToggleEl(el) {
-  if (!el || !el.dataset) return;
-  onInventoryItemMultiToggle(el.dataset.invKey, el.dataset.opt, el.checked);
-}
-
 function onInventoryItemFieldChange(key, raw, type) {
   if (!invItemEditing) return;
   if (type === 'number') {
@@ -1347,12 +1215,6 @@ function onInventoryItemFieldChange(key, raw, type) {
 function closeInventoryItemModal() {
   document.getElementById('invItemModal')?.classList.remove('open');
   invItemEditing = null;
-}
-
-function invValueFingerprint(f, v) {
-  if (f.type === 'composite' || f.type === 'multi_select') return JSON.stringify(v ?? null);
-  if (f.type === 'number' && f.unitMode === 'dictionary') return JSON.stringify(v ?? null);
-  return String(v ?? '');
 }
 
 async function saveInventoryItemModal() {
@@ -1379,7 +1241,6 @@ async function saveInventoryItemModal() {
   const isEdit = invItemEditing.itemId != null;
   if (isEdit) {
     const sensitiveChange = fields.some(f => {
-      if (!['number', 'text', 'composite', 'multi_select'].includes(f.type)) return false;
       if (!Object.prototype.hasOwnProperty.call(invItemEditing._origValues, f.key)) return false;
       const oldV = invItemEditing._origValues[f.key];
       const newV = invItemEditing.values[f.key];
@@ -1394,9 +1255,11 @@ async function saveInventoryItemModal() {
   const items = Array.isArray(rec.items) ? rec.items.slice() : [];
   if (isEdit) {
     const idx = items.findIndex(x => String(x.id) === String(invItemEditing.itemId));
-    if (idx >= 0) {
-      items[idx] = { ...items[idx], values: outVals, updatedAt: invNowIso() };
+    if (idx < 0) {
+      invToast(L.inv_err_item_not_found || 'Позиция не найдена. Закройте окно и откройте опись снова.', 'error');
+      return;
     }
+    items[idx] = { ...items[idx], values: outVals, updatedAt: invNowIso() };
   } else {
     items.push({
       id: invUuid(),
