@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="author" content="AppHarbor.studio, https://appharbor.studio">
+  <meta name="copyright" content="AppHarbor.studio">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: photo:;">
   <title>Work Journal</title>
   <link rel="stylesheet" href="css/styles.css">
@@ -98,6 +100,10 @@
         <div class="stat-chip-label" data-i18n="stat_plans_pending">Активных планов</div>
         <div class="stat-chip-value" id="statPlans">0</div>
       </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="sidebar-footer-copy" data-i18n="sidebar_copyright_line">© AppHarbor.studio</div>
+      <a class="sidebar-footer-link" href="https://appharbor.studio" target="_blank" rel="noopener noreferrer">appharbor.studio</a>
     </div>
   </aside>
 
@@ -243,6 +249,10 @@
           <div style="color:var(--text); margin-bottom:6px; font-family:var(--font-display); font-size:11px"
                data-i18n="settings_about_title">О приложении</div>
           <span id="aboutText"></span>
+          <div class="settings-copyright-block">
+            <div data-i18n="settings_copyright_line">© AppHarbor.studio — студия разработки офлайн-приложений.</div>
+            <a class="settings-copyright-link" href="https://appharbor.studio" target="_blank" rel="noopener noreferrer">appharbor.studio</a>
+          </div>
         </div>
       </div>
     </div>
@@ -839,9 +849,12 @@
         </div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-ghost" onclick="closeInventoryTemplateModal()" data-i18n="btn_cancel">Отмена</button>
-      <button type="button" class="btn btn-primary" onclick="saveInventoryTemplateModal()" data-i18n="btn_save">Сохранить</button>
+    <div class="modal-footer" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <button type="button" class="btn btn-danger" id="invTemplateDeleteBtn" style="display:none" onclick="deleteInventoryTemplateFromModal()" data-i18n="inv_btn_delete_template">Удалить шаблон</button>
+      <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;">
+        <button type="button" class="btn btn-ghost" onclick="closeInventoryTemplateModal()" data-i18n="btn_cancel">Отмена</button>
+        <button type="button" class="btn btn-primary" onclick="saveInventoryTemplateModal()" data-i18n="btn_save">Сохранить</button>
+      </div>
     </div>
   </div>
 </div>

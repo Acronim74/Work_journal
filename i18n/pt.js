@@ -109,6 +109,8 @@ const LANG_PT = {
   settings_lang_desc: 'Idioma da UI (os dados não são alterados)',
   settings_about_title: 'Sobre',
   settings_about_text: 'Work Journal v1.1\nBanco: IndexedDB (local, no navegador)\nNenhum dado é enviado à internet\nUse exportar/importar para transferir dados',
+  settings_copyright_line: '© AppHarbor.studio — estúdio de aplicações offline.',
+  sidebar_copyright_line: '© AppHarbor.studio — apps offline',
 
   toast_entrySaved: 'Registro adicionado',
   toast_entryUpdated: 'Registro atualizado',
@@ -400,15 +402,31 @@ LANG_PT.inv_composite_part_default_short = 'Parte';
 LANG_PT.inv_composite_add_part = 'parte';
 LANG_PT.inv_composite_remove_part = 'Remover parte';
 LANG_PT.dict_page_title = 'Dicionários';
-LANG_PT.dict_page_desc = 'Os valores são usados quando um campo do modelo usa a fonte «Dicionário».';
+LANG_PT.dict_page_desc = 'Dicionários integrados e personalizados — valores para campos com «Dicionário» ou unidades de um dicionário.';
+LANG_PT.dict_page_hint_custom = 'Pode remover um dicionário personalizado com o botão vermelho «Excluir» abaixo da lista de valores. Os integrados não podem ser excluídos.';
 LANG_PT.inv_dict_title_storage = 'Locais de armazenamento';
 LANG_PT.inv_dict_title_units = 'Unidades de medida';
 LANG_PT.inv_dict_one_per_line = 'Um valor por linha.';
+LANG_PT.inv_dict_btn_new = '+ Novo dicionário';
+LANG_PT.inv_dict_new_name_prompt = 'Nome do dicionário (como nas listas):';
+LANG_PT.inv_dict_title_label = 'Nome exibido';
+LANG_PT.inv_dict_slug_label = 'Código';
+LANG_PT.inv_dict_delete = 'Excluir';
+LANG_PT.inv_dict_confirm_delete = 'Excluir este dicionário? Será preciso ajustar manual os campos de modelo que o referenciam.';
+LANG_PT.inv_dict_system_badge = 'integrado';
+LANG_PT.inv_field_unit_value_source = 'Origem das unidades';
+LANG_PT.inv_field_unit_options_label = 'Unidades (separadas por vírgula)';
 LANG_PT.inv_toast_dictionary_saved = 'Dicionário salvo';
+LANG_PT.inv_toast_dictionary_created = 'Dicionário criado';
+LANG_PT.inv_toast_dictionary_deleted = 'Dicionário excluído';
 LANG_PT.inv_toast_item_duplicated = 'Item duplicado';
 LANG_PT.inv_btn_duplicate_item = 'Duplicar';
 LANG_PT.inv_confirm_remove_field = 'Remover este campo do modelo?';
 LANG_PT.inv_confirm_archive_template = 'Mover modelo para o arquivo? Não será possível criar novos registros com ele.';
+LANG_PT.inv_btn_delete_template = 'Excluir modelo';
+LANG_PT.inv_confirm_delete_template = 'Excluir o modelo «{name}»?';
+LANG_PT.inv_confirm_delete_template_cascade = 'Excluir o modelo «{name}» e todos os registros de inventário que o usam ({n}) com todos os itens? Isto não pode ser desfeito.';
+LANG_PT.inv_toast_template_deleted = 'Modelo excluído';
 LANG_PT.inv_confirm_delete_record = 'Excluir este registro com todos os itens?';
 LANG_PT.inv_confirm_delete_item = 'Excluir este item?';
 LANG_PT.inv_confirm_edit_item = 'Salvar alterações neste item?';

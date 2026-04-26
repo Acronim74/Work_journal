@@ -109,6 +109,8 @@ const LANG_PL = {
   settings_lang_desc: 'Język menu i etykiet (dane nie są zmieniane)',
   settings_about_title: 'O aplikacji',
   settings_about_text: 'Dziennik pracy v1.1\nBaza danych: IndexedDB (lokalnie, w przeglądarce)\nDane nie są wysyłane do internetu\nDo przenoszenia używaj eksport/import',
+  settings_copyright_line: '© AppHarbor.studio — studio aplikacji offline.',
+  sidebar_copyright_line: '© AppHarbor.studio — aplikacje offline',
 
   toast_entrySaved: 'Wpis dodany',
   toast_entryUpdated: 'Wpis zaktualizowany',
@@ -402,15 +404,31 @@ LANG_PL.inv_composite_part_default_short = 'Część';
 LANG_PL.inv_composite_add_part = 'część';
 LANG_PL.inv_composite_remove_part = 'Usuń część';
 LANG_PL.dict_page_title = 'Słowniki';
-LANG_PL.dict_page_desc = 'Wartości są używane, gdy pole szablonu ma źródło «Słownik».';
+LANG_PL.dict_page_desc = 'Wbudowane i własne słowniki — wartości dla pól z źródłem «Słownik» lub jednostkami ze słownika.';
+LANG_PL.dict_page_hint_custom = 'Własny słownik możesz usunąć czerwonym przyciskiem «Usuń» pod listą wartości. Wbudowanych usunąć nie można.';
 LANG_PL.inv_dict_title_storage = 'Miejsca składowania';
 LANG_PL.inv_dict_title_units = 'Jednostki miary';
 LANG_PL.inv_dict_one_per_line = 'Jedna wartość w wierszu.';
+LANG_PL.inv_dict_btn_new = '+ Nowy słownik';
+LANG_PL.inv_dict_new_name_prompt = 'Nazwa słownika (jak na listach wyboru):';
+LANG_PL.inv_dict_title_label = 'Nazwa na listach';
+LANG_PL.inv_dict_slug_label = 'Kod';
+LANG_PL.inv_dict_delete = 'Usuń';
+LANG_PL.inv_dict_confirm_delete = 'Usunąć ten słownik? Pola szablonów z tym kodem trzeba będzie poprawić ręcznie.';
+LANG_PL.inv_dict_system_badge = 'wbudowany';
+LANG_PL.inv_field_unit_value_source = 'Źródło jednostek';
+LANG_PL.inv_field_unit_options_label = 'Jednostki (przecinkami)';
 LANG_PL.inv_toast_dictionary_saved = 'Słownik zapisany';
+LANG_PL.inv_toast_dictionary_created = 'Słownik utworzony';
+LANG_PL.inv_toast_dictionary_deleted = 'Słownik usunięty';
 LANG_PL.inv_toast_item_duplicated = 'Pozycja skopiowana';
 LANG_PL.inv_btn_duplicate_item = 'Kopia';
 LANG_PL.inv_confirm_remove_field = 'Usunąć to pole z szablonu?';
 LANG_PL.inv_confirm_archive_template = 'Przenieść szablon do archiwum? Nie będzie można tworzyć z niego nowych spisów.';
+LANG_PL.inv_btn_delete_template = 'Usuń szablon';
+LANG_PL.inv_confirm_delete_template = 'Usunąć szablon «{name}»?';
+LANG_PL.inv_confirm_delete_template_cascade = 'Usunąć szablon «{name}» i wszystkie powiązane spisy ({n}) wraz z pozycjami? Tej operacji nie cofniesz.';
+LANG_PL.inv_toast_template_deleted = 'Szablon usunięty';
 LANG_PL.inv_confirm_delete_record = 'Usunąć ten spis wraz ze wszystkimi pozycjami?';
 LANG_PL.inv_confirm_delete_item = 'Usunąć tę pozycję?';
 LANG_PL.inv_confirm_edit_item = 'Zapisać zmiany pozycji?';

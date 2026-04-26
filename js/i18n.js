@@ -95,6 +95,13 @@ function applyI18n() {
 
   const fCatName = document.getElementById('fCatName');
   if (fCatName) fCatName.placeholder = L.field_catNamePlaceholder;
+
+  const aboutEl = document.getElementById('aboutText');
+  if (aboutEl && L.settings_about_text != null) {
+    const raw = String(L.settings_about_text);
+    const safe = (typeof esc === 'function') ? esc(raw) : raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    aboutEl.innerHTML = safe.replace(/\n/g, '<br>');
+  }
 }
 
 function renderLangPicker() {

@@ -8,6 +8,40 @@
 const INV_FIELD_TYPES = ['text', 'number', 'select', 'date', 'boolean', 'multi_select', 'composite'];
 
 const INV_DICT_SLUG = { STORAGE: 'storageLocations', UNITS: 'units' };
+const INV_DICT_SYSTEM_SLUGS = new Set([INV_DICT_SLUG.STORAGE, INV_DICT_SLUG.UNITS]);
+
+let _invDictSelectCache = null;
+
+function invDictResolvedLabel(d) {
+  if (!d || !d.slug) return '';
+  if (d.slug === INV_DICT_SLUG.STORAGE) return L.inv_dict_title_storage || 'Места хранения';
+  if (d.slug === INV_DICT_SLUG.UNITS) return L.inv_dict_title_units || 'Единицы измерения';
+  const t = (d.title && String(d.title).trim()) ? String(d.title).trim() : '';
+  return t || d.slug;
+}
+
+async function invRefreshDictSelectCache() {
+  await ensureInventoryDictionaries();
+  const all = await dbGetAllDictionaries();
+  const labelBySlug = {};
+  const slugSet = new Set();
+  for (const d of all) {
+    if (!d || !d.slug) continue;
+    slugSet.add(d.slug);
+    labelBySlug[d.slug] = invDictResolvedLabel(d);
+  }
+  for (const s of [INV_DICT_SLUG.STORAGE, INV_DICT_SLUG.UNITS]) {
+    if (!slugSet.has(s)) slugSet.add(s);
+    if (!labelBySlug[s]) labelBySlug[s] = invDictTitle(s);
+  }
+  const rest = [...slugSet].filter(s => !INV_DICT_SYSTEM_SLUGS.has(s)).sort((a, b) =>
+    String(labelBySlug[a] || a).localeCompare(String(labelBySlug[b] || b), undefined, { sensitivity: 'base' }));
+  _invDictSelectCache = {
+    slugsStorageFirst: [INV_DICT_SLUG.STORAGE, INV_DICT_SLUG.UNITS, ...rest],
+    slugsUnitsFirst: [INV_DICT_SLUG.UNITS, INV_DICT_SLUG.STORAGE, ...rest],
+    labelBySlug,
+  };
+}
 
 function invUuid() {
   return 'f_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
@@ -66,6 +100,9 @@ function invFieldOptionList(field, dictMap) {
     return Array.isArray(field.options) ? field.options.filter(Boolean) : [];
   }
   if (field.type === 'number' && field.unitMode === 'dictionary') {
+    if (field.unitSource === 'inline') {
+      return Array.isArray(field.options) ? field.options.filter(Boolean) : [];
+    }
     const slug = field.dictionarySlug || INV_DICT_SLUG.UNITS;
     return (dictMap && dictMap[slug]) ? dictMap[slug].slice() : [];
   }
@@ -149,14 +186,26 @@ function invNormalizeTemplateFields(fields) {
       }
       base.unitMode = um;
       if (um === 'dictionary') {
-        base.dictionarySlug = String(f.dictionarySlug || '').trim() || INV_DICT_SLUG.UNITS;
+        const us = (f.unitSource === 'inline') ? 'inline' : 'dictionary';
+        base.unitSource = us;
+        if (us === 'inline') {
+          base.options = Array.isArray(f.options) ? f.options.filter(Boolean) : [];
+          base.dictionarySlug = undefined;
+        } else {
+          base.dictionarySlug = String(f.dictionarySlug || '').trim() || INV_DICT_SLUG.UNITS;
+          base.options = undefined;
+        }
         base.unit = '';
       } else if (um === 'free') {
         base.unit = f.unit != null ? String(f.unit) : '';
         base.dictionarySlug = undefined;
+        base.unitSource = undefined;
+        base.options = undefined;
       } else {
         base.unit = '';
         base.dictionarySlug = undefined;
+        base.unitSource = undefined;
+        base.options = undefined;
       }
     }
 
@@ -286,6 +335,7 @@ async function renderInventoryTemplatesPage() {
     const archBtn = t.archived
       ? `<button class="btn btn-ghost btn-sm" onclick="restoreInventoryTemplate(${t.id})">${invEsc(L.inv_btn_restore || 'Восстановить')}</button>`
       : `<button class="btn btn-ghost btn-sm" onclick="archiveInventoryTemplate(${t.id})">${invEsc(L.inv_btn_archive || 'В архив')}</button>`;
+    const delBtn = `<button class="btn btn-danger btn-sm" onclick="deleteInventoryTemplate(${t.id})">${invEsc(L.btn_delete || 'Удалить')}</button>`;
     return `
       <div class="inv-template-card ${t.archived ? 'archived' : ''}" id="inv-tpl-${t.id}">
         <div style="flex:1;min-width:0;">
@@ -296,6 +346,7 @@ async function renderInventoryTemplatesPage() {
           <button class="btn btn-ghost btn-sm" onclick="openInventoryTemplateEdit(${t.id})">${invEsc(L.inv_btn_edit_short || 'Изм.')}</button>
           <button class="btn btn-ghost btn-sm" onclick="duplicateInventoryTemplate(${t.id})">${invEsc(L.inv_btn_duplicate_template || 'Копия')}</button>
           ${archBtn}
+          ${delBtn}
         </div>
       </div>`;
   }).join('');
@@ -305,7 +356,7 @@ async function renderInventoryTemplatesPage() {
 
 let invTplEditing = null; // { id|null, name, archived, fields:[{key,label,type,options?,unit?,required?}] }
 
-function openInventoryTemplateCreate() {
+async function openInventoryTemplateCreate() {
   dismissInventoryModals('template');
   invTplEditing = {
     id: null,
@@ -313,7 +364,7 @@ function openInventoryTemplateCreate() {
     archived: false,
     fields: [],
   };
-  showInventoryTemplateModal();
+  await showInventoryTemplateModal();
 }
 
 async function duplicateInventoryTemplate(id) {
@@ -355,10 +406,10 @@ async function openInventoryTemplateEdit(id) {
       compositeParts: Array.isArray(f.compositeParts) ? [...f.compositeParts] : [],
     })),
   };
-  showInventoryTemplateModal();
+  await showInventoryTemplateModal();
 }
 
-function showInventoryTemplateModal() {
+async function showInventoryTemplateModal() {
   const titleEl = document.getElementById('invTemplateModalTitle');
   if (titleEl) {
     titleEl.textContent = invTplEditing.id
@@ -367,7 +418,9 @@ function showInventoryTemplateModal() {
   }
   const nameEl = document.getElementById('invTemplateNameInput');
   if (nameEl) nameEl.value = invTplEditing.name || '';
-  renderInventoryTemplateFieldsList();
+  const delBtn = document.getElementById('invTemplateDeleteBtn');
+  if (delBtn) delBtn.style.display = invTplEditing?.id ? '' : 'none';
+  await renderInventoryTemplateFieldsList();
   document.getElementById('invTemplateModal')?.classList.add('open');
   setTimeout(() => document.getElementById('invTemplateNameInput')?.focus(), 50);
 }
@@ -378,14 +431,21 @@ function closeInventoryTemplateModal() {
 }
 
 function invDictionarySelectHtml(selectedSlug, idx, isUnitDict) {
-  const slugs = [INV_DICT_SLUG.STORAGE, INV_DICT_SLUG.UNITS];
-  return slugs.map(sl => {
-    const sel = (selectedSlug || (isUnitDict ? INV_DICT_SLUG.UNITS : INV_DICT_SLUG.STORAGE)) === sl ? 'selected' : '';
-    return `<option value="${invEsc(sl)}" ${sel}>${invEsc(invDictTitle(sl))}</option>`;
+  const c = _invDictSelectCache;
+  const order = (c && (isUnitDict ? c.slugsUnitsFirst : c.slugsStorageFirst) && (isUnitDict ? c.slugsUnitsFirst : c.slugsStorageFirst).length)
+    ? (isUnitDict ? c.slugsUnitsFirst : c.slugsStorageFirst)
+    : (isUnitDict ? [INV_DICT_SLUG.UNITS, INV_DICT_SLUG.STORAGE] : [INV_DICT_SLUG.STORAGE, INV_DICT_SLUG.UNITS]);
+  const def = selectedSlug || (isUnitDict ? INV_DICT_SLUG.UNITS : INV_DICT_SLUG.STORAGE);
+  const labels = (c && c.labelBySlug) ? c.labelBySlug : {};
+  return order.map(sl => {
+    const sel = def === sl ? 'selected' : '';
+    const lab = labels[sl] || invDictTitle(sl);
+    return `<option value="${invEsc(sl)}" ${sel}>${invEsc(lab)}</option>`;
   }).join('');
 }
 
-function renderInventoryTemplateFieldsList() {
+async function renderInventoryTemplateFieldsList() {
+  await invRefreshDictSelectCache();
   const wrap = document.getElementById('invTplFieldsList');
   if (!wrap || !invTplEditing) return;
   if (invTplEditing.fields.length === 0) {
@@ -445,9 +505,31 @@ function renderInventoryTemplateFieldsList() {
         unitBlock = `<input type="text" class="form-input" placeholder="${invEsc(L.inv_field_unit_placeholder || 'ед.')}"
                   value="${invEsc(f.unit || '')}" oninput="onInventoryTemplateFieldUnit(${idx}, this.value)">`;
       } else if (um === 'dictionary') {
-        unitBlock = `<select class="form-select" onchange="onInventoryTemplateFieldDictionary(${idx}, this.value)">
-            ${invDictionarySelectHtml(f.dictionarySlug, idx, true)}
-          </select>`;
+        const uSrc = (f.unitSource === 'inline') ? 'inline' : 'dictionary';
+        extraBlocks += `
+        <div class="field-row-options">
+          <label class="form-label" style="font-size:11px;">${invEsc(L.inv_field_unit_value_source || 'Источник единиц')}</label>
+          <select class="form-select" onchange="onInventoryTemplateUnitSource(${idx}, this.value)">
+            <option value="dictionary" ${uSrc === 'dictionary' ? 'selected' : ''}>${invEsc(L.inv_field_source_dictionary || 'Справочник')}</option>
+            <option value="inline" ${uSrc === 'inline' ? 'selected' : ''}>${invEsc(L.inv_field_source_options || 'Свой список')}</option>
+          </select>
+        </div>`;
+        if (uSrc === 'dictionary') {
+          extraBlocks += `
+          <div class="field-row-options">
+            <label class="form-label" style="font-size:11px;">${invEsc(L.inv_field_dictionary_pick || 'Справочник')}</label>
+            <select class="form-select" onchange="onInventoryTemplateFieldDictionary(${idx}, this.value)">
+              ${invDictionarySelectHtml(f.dictionarySlug, idx, true)}
+            </select>
+          </div>`;
+        } else {
+          extraBlocks += `
+          <div class="field-row-options">
+            <label class="form-label" style="font-size:11px;">${invEsc(L.inv_field_unit_options_label || L.inv_field_options_label || 'Единицы (через запятую)')}</label>
+            <input type="text" class="form-input" value="${invEsc((f.options || []).join(', '))}"
+                   oninput="onInventoryTemplateFieldOptions(${idx}, this.value)">
+          </div>`;
+        }
       }
     }
 
@@ -492,7 +574,7 @@ function renderInventoryTemplateFieldsList() {
   }).join('');
 }
 
-function addInventoryTemplateField() {
+async function addInventoryTemplateField() {
   if (!invTplEditing) return;
   invTplEditing.fields.push({
     key: invUuid(),
@@ -504,27 +586,28 @@ function addInventoryTemplateField() {
     dictionarySlug: INV_DICT_SLUG.STORAGE,
     unit: '',
     unitMode: 'free',
+    unitSource: 'dictionary',
     compositeParts: [L.inv_composite_part_default1 || 'Часть 1', L.inv_composite_part_default2 || 'Часть 2'],
     compositeSeparator: '-',
   });
-  renderInventoryTemplateFieldsList();
+  await renderInventoryTemplateFieldsList();
 }
-function removeInventoryTemplateField(idx) {
+async function removeInventoryTemplateField(idx) {
   if (!invTplEditing) return;
   if (!invConfirm(L.inv_confirm_remove_field || 'Удалить это поле?')) return;
   invTplEditing.fields.splice(idx, 1);
-  renderInventoryTemplateFieldsList();
+  await renderInventoryTemplateFieldsList();
 }
-function moveInventoryTemplateField(idx, delta) {
+async function moveInventoryTemplateField(idx, delta) {
   if (!invTplEditing) return;
   const j = idx + delta;
   if (j < 0 || j >= invTplEditing.fields.length) return;
   const arr = invTplEditing.fields;
   [arr[idx], arr[j]] = [arr[j], arr[idx]];
-  renderInventoryTemplateFieldsList();
+  await renderInventoryTemplateFieldsList();
 }
 function onInventoryTemplateFieldLabel(idx, v)    { if (invTplEditing?.fields[idx]) invTplEditing.fields[idx].label = v; }
-function onInventoryTemplateFieldType(idx, v) {
+async function onInventoryTemplateFieldType(idx, v) {
   if (!invTplEditing?.fields[idx]) return;
   const f = invTplEditing.fields[idx];
   f.type = v;
@@ -534,7 +617,10 @@ function onInventoryTemplateFieldType(idx, v) {
   }
   if (v === 'number') {
     if (!['none', 'free', 'dictionary'].includes(f.unitMode)) f.unitMode = 'free';
-    if (f.unitMode === 'dictionary') f.dictionarySlug = f.dictionarySlug || INV_DICT_SLUG.UNITS;
+    if (f.unitMode === 'dictionary') {
+      f.dictionarySlug = f.dictionarySlug || INV_DICT_SLUG.UNITS;
+      if (f.unitSource !== 'inline') f.unitSource = 'dictionary';
+    }
   }
   if (v === 'composite') {
     if (!Array.isArray(f.compositeParts) || f.compositeParts.length < 2) {
@@ -542,7 +628,7 @@ function onInventoryTemplateFieldType(idx, v) {
     }
     f.compositeSeparator = f.compositeSeparator || '-';
   }
-  renderInventoryTemplateFieldsList();
+  await renderInventoryTemplateFieldsList();
 }
 function onInventoryTemplateFieldUnit(idx, v)     { if (invTplEditing?.fields[idx]) invTplEditing.fields[idx].unit = v; }
 function onInventoryTemplateFieldRequired(idx, v) { if (invTplEditing?.fields[idx]) invTplEditing.fields[idx].required = !!v; }
@@ -550,23 +636,43 @@ function onInventoryTemplateFieldOptions(idx, v) {
   if (!invTplEditing?.fields[idx]) return;
   invTplEditing.fields[idx].options = String(v || '').split(',').map(s => s.trim()).filter(Boolean);
 }
-function onInventoryTemplateSelectSource(idx, v) {
+async function onInventoryTemplateSelectSource(idx, v) {
   if (!invTplEditing?.fields[idx]) return;
   invTplEditing.fields[idx].selectSource = v === 'dictionary' ? 'dictionary' : 'options';
-  renderInventoryTemplateFieldsList();
+  await renderInventoryTemplateFieldsList();
 }
 function onInventoryTemplateFieldDictionary(idx, slug) {
   if (!invTplEditing?.fields[idx]) return;
   invTplEditing.fields[idx].dictionarySlug = slug;
 }
-function onInventoryTemplateUnitMode(idx, v) {
+async function onInventoryTemplateUnitMode(idx, v) {
   if (!invTplEditing?.fields[idx]) return;
-  invTplEditing.fields[idx].unitMode = v;
+  const f = invTplEditing.fields[idx];
+  f.unitMode = v;
   if (v === 'dictionary') {
-    invTplEditing.fields[idx].dictionarySlug = invTplEditing.fields[idx].dictionarySlug || INV_DICT_SLUG.UNITS;
-    invTplEditing.fields[idx].unit = '';
+    f.dictionarySlug = f.dictionarySlug || INV_DICT_SLUG.UNITS;
+    f.unit = '';
+    if (f.unitSource !== 'inline') f.unitSource = 'dictionary';
+  } else {
+    f.unitSource = undefined;
+    f.dictionarySlug = undefined;
+    f.options = [];
   }
-  renderInventoryTemplateFieldsList();
+  await renderInventoryTemplateFieldsList();
+}
+
+async function onInventoryTemplateUnitSource(idx, v) {
+  if (!invTplEditing?.fields[idx]) return;
+  const f = invTplEditing.fields[idx];
+  f.unitSource = v === 'inline' ? 'inline' : 'dictionary';
+  if (f.unitSource === 'dictionary') {
+    f.dictionarySlug = f.dictionarySlug || INV_DICT_SLUG.UNITS;
+    f.options = [];
+  } else {
+    f.dictionarySlug = undefined;
+    if (!Array.isArray(f.options)) f.options = [];
+  }
+  await renderInventoryTemplateFieldsList();
 }
 function onInventoryTemplateCompositeSep(idx, v) {
   if (!invTplEditing?.fields[idx]) return;
@@ -576,20 +682,20 @@ function onInventoryTemplateCompositePartLabel(idx, partIdx, v) {
   if (!invTplEditing?.fields[idx]?.compositeParts) return;
   invTplEditing.fields[idx].compositeParts[partIdx] = v;
 }
-function addInventoryTemplateCompositePart(idx) {
+async function addInventoryTemplateCompositePart(idx) {
   if (!invTplEditing?.fields[idx]) return;
   const parts = invTplEditing.fields[idx].compositeParts || [];
   if (parts.length >= 8) return;
   parts.push(`${L.inv_composite_part_default_short || 'Часть'} ${parts.length + 1}`);
   invTplEditing.fields[idx].compositeParts = parts;
-  renderInventoryTemplateFieldsList();
+  await renderInventoryTemplateFieldsList();
 }
-function removeInventoryTemplateCompositePart(idx, partIdx) {
+async function removeInventoryTemplateCompositePart(idx, partIdx) {
   if (!invTplEditing?.fields[idx]?.compositeParts) return;
   const parts = invTplEditing.fields[idx].compositeParts;
   if (parts.length <= 2) return;
   parts.splice(partIdx, 1);
-  renderInventoryTemplateFieldsList();
+  await renderInventoryTemplateFieldsList();
 }
 
 async function saveInventoryTemplateModal() {
@@ -659,6 +765,53 @@ async function restoreInventoryTemplate(id) {
   invToast(L.inv_toast_template_restored || 'Шаблон восстановлен', 'success');
   invScheduleSave();
   await renderInventoryTemplatesPage();
+}
+
+/**
+ * Удалить шаблон и все связанные описи с позициями. Возвращает true, если удаление выполнено.
+ */
+async function deleteInventoryTemplate(id) {
+  const tid = parseInt(id, 10);
+  if (!tid) return false;
+  const t = await dbGetInventoryTemplate(tid);
+  if (!t) return false;
+  const name = invTplName(t);
+  const all = await dbGetAllInventoryRecords();
+  const related = all.filter(r => r.templateId === tid);
+  const n = related.length;
+  let msg;
+  if (n > 0) {
+    msg = (L.inv_confirm_delete_template_cascade || 'Удалить шаблон «{name}» и все описи по нему ({n} шт.) вместе с позициями? Это необратимо.')
+      .replace(/\{name\}/g, name).replace(/\{n\}/g, String(n));
+  } else {
+    msg = (L.inv_confirm_delete_template || 'Удалить шаблон «{name}»?').replace(/\{name\}/g, name);
+  }
+  if (!invConfirm(msg)) return false;
+  for (const r of related) {
+    await dbDeleteInventoryRecord(r.id);
+  }
+  await dbDeleteInventoryTemplate(tid);
+  invToast(L.inv_toast_template_deleted || 'Шаблон удалён', 'success');
+  invScheduleSave();
+  await renderInventoryTemplatesPage();
+  if (typeof currentPage !== 'undefined' && currentPage === 'inventory' && typeof renderInventoryPage === 'function') {
+    await renderInventoryPage();
+  }
+  const detail = document.getElementById('inventoryRecordDetail');
+  if (detail && detail.dataset.recId) {
+    const rid = parseInt(detail.dataset.recId, 10);
+    if (related.some(r => r.id === rid)) {
+      detail.classList.add('hidden');
+      delete detail.dataset.recId;
+    }
+  }
+  return true;
+}
+
+async function deleteInventoryTemplateFromModal() {
+  if (!invTplEditing?.id) return;
+  const ok = await deleteInventoryTemplate(invTplEditing.id);
+  if (ok) closeInventoryTemplateModal();
 }
 
 /* ============================================================
@@ -1366,23 +1519,93 @@ async function ensureInventoryDictionaries() {
   }
 }
 
+function invDictCardHtml(slug, titleRowHtml, isSystem) {
+  return `
+    <div class="inv-dict-card" style="margin-bottom:12px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md,8px);">
+      ${titleRowHtml}
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">${invEsc(L.inv_dict_one_per_line || 'Одна строка — одно значение')}</div>
+      <textarea class="form-textarea" id="dict-edit-${slug}" rows="8" style="font-family:monospace;font-size:13px;width:100%;box-sizing:border-box;"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;">
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveInventoryDictionary('${slug}')">${invEsc(L.btn_save || 'Сохранить')}</button>
+        ${isSystem ? '' : `<button type="button" class="btn btn-danger btn-sm" onclick="deleteInventoryDictionary('${slug}')">${invEsc(L.inv_dict_delete || 'Удалить')}</button>`}
+      </div>
+    </div>`;
+}
+
 async function renderDictionariesPage() {
   const root = document.getElementById('dictionariesList');
   if (!root) return;
   await ensureInventoryDictionaries();
-  const slugs = [INV_DICT_SLUG.STORAGE, INV_DICT_SLUG.UNITS];
-  root.innerHTML = slugs.map(slug => `
-    <div class="inv-dict-card" style="margin-bottom:12px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md,8px);">
-      <div style="font-weight:600;margin-bottom:8px;">${invEsc(invDictTitle(slug))}</div>
-      <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">${invEsc(L.inv_dict_one_per_line || 'Одна строка — одно значение')}</div>
-      <textarea class="form-textarea" id="dict-edit-${slug}" rows="8" style="font-family:monospace;font-size:13px;width:100%;box-sizing:border-box;"></textarea>
-      <button type="button" class="btn btn-primary btn-sm" style="margin-top:10px" onclick="saveInventoryDictionary('${slug}')">${invEsc(L.btn_save || 'Сохранить')}</button>
-    </div>`).join('');
-  for (const slug of slugs) {
-    const d = await dbGetDictionary(slug);
+  const all = await dbGetAllDictionaries();
+  const bySlug = new Map((all || []).filter(d => d && d.slug).map(d => [d.slug, d]));
+  const customSlugs = (all || []).map(d => d && d.slug).filter(s => s && !INV_DICT_SYSTEM_SLUGS.has(s))
+    .sort((a, b) => {
+      const ta = invDictResolvedLabel(bySlug.get(a) || { slug: a });
+      const tb = invDictResolvedLabel(bySlug.get(b) || { slug: b });
+      return String(ta).localeCompare(String(tb), undefined, { sensitivity: 'base' });
+    });
+
+  const systemHtml = [INV_DICT_SLUG.STORAGE, INV_DICT_SLUG.UNITS].map(slug => {
+    const titleRow = `
+      <div style="font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span>${invEsc(invDictTitle(slug))}</span>
+        <span style="font-size:10px;font-weight:500;color:var(--text-dim);">(${invEsc(L.inv_dict_system_badge || 'встроенный')})</span>
+      </div>`;
+    return invDictCardHtml(slug, titleRow, true);
+  }).join('');
+
+  const customHtml = customSlugs.map(slug => {
+    const d = bySlug.get(slug);
+    const disp = invDictResolvedLabel(d || { slug });
+    const titleRow = `
+      <div style="margin-bottom:8px;">
+        <label class="form-label" style="font-size:11px;">${invEsc(L.inv_dict_title_label || 'Название в списках')}</label>
+        <input type="text" class="form-input" id="dict-title-${slug}" value="${invEsc(d && d.title != null ? String(d.title) : disp)}" style="width:100%;box-sizing:border-box;">
+        <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">${invEsc(L.inv_dict_slug_label || 'Код')}: <code>${invEsc(slug)}</code></div>
+      </div>`;
+    return invDictCardHtml(slug, titleRow, false);
+  }).join('');
+
+  root.innerHTML = `
+    <div style="margin-bottom:14px;">
+      <button type="button" class="btn btn-primary btn-sm" onclick="createInventoryDictionaryFromUi()">${invEsc(L.inv_dict_btn_new || '+ Новый справочник')}</button>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:8px;max-width:52rem;line-height:1.4;">${invEsc(L.dict_page_hint_custom || '')}</div>
+    </div>
+    ${systemHtml}
+    ${customHtml || ''}`;
+
+  for (const slug of [INV_DICT_SLUG.STORAGE, INV_DICT_SLUG.UNITS, ...customSlugs]) {
+    const d = bySlug.get(slug) || await dbGetDictionary(slug);
     const ta = document.getElementById('dict-edit-' + slug);
     if (ta) ta.value = (d && Array.isArray(d.values)) ? d.values.join('\n') : '';
   }
+  _invDictSelectCache = null;
+}
+
+async function createInventoryDictionaryFromUi() {
+  const raw = prompt(L.inv_dict_new_name_prompt || 'Название справочника:', '');
+  if (raw == null) return;
+  const title = String(raw).trim();
+  if (!title) return;
+  let slug = 'd_' + Math.random().toString(36).slice(2, 11);
+  for (let n = 0; n < 20 && await dbGetDictionary(slug); n++) {
+    slug = 'd_' + Math.random().toString(36).slice(2, 11);
+  }
+  await dbPutDictionary({ slug, title, values: [], updatedAt: invNowIso() });
+  invToast(L.inv_toast_dictionary_created || 'Справочник создан', 'success');
+  invScheduleSave();
+  _invDictSelectCache = null;
+  await renderDictionariesPage();
+}
+
+async function deleteInventoryDictionary(slug) {
+  if (!slug || INV_DICT_SYSTEM_SLUGS.has(slug)) return;
+  if (!invConfirm(L.inv_dict_confirm_delete || 'Удалить этот справочник?')) return;
+  await dbDeleteDictionary(slug);
+  invToast(L.inv_toast_dictionary_deleted || 'Справочник удалён', 'success');
+  invScheduleSave();
+  _invDictSelectCache = null;
+  await renderDictionariesPage();
 }
 
 async function saveInventoryDictionary(slug) {
@@ -1390,9 +1613,17 @@ async function saveInventoryDictionary(slug) {
   if (!ta) return;
   const values = ta.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   const uniq = [...new Set(values)];
-  await dbPutDictionary({ slug, values: uniq, updatedAt: invNowIso() });
+  const payload = { slug, values: uniq, updatedAt: invNowIso() };
+  if (!INV_DICT_SYSTEM_SLUGS.has(slug)) {
+    const titleEl = document.getElementById('dict-title-' + slug);
+    const t = (titleEl && String(titleEl.value || '').trim()) ? String(titleEl.value).trim() : '';
+    const prev = await dbGetDictionary(slug);
+    payload.title = t || (prev && prev.title) || slug;
+  }
+  await dbPutDictionary(payload);
   invToast(L.inv_toast_dictionary_saved || 'Справочник сохранён', 'success');
   invScheduleSave();
+  _invDictSelectCache = null;
 }
 
 // Инициализация: дождаться готовности IndexedDB (db задаётся в db.js initDB) и засеять справочники по умолчанию при отсутствии

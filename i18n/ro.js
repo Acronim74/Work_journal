@@ -109,6 +109,8 @@ const LANG_RO = {
   settings_lang_desc: 'Limba UI (datele nu se schimbă)',
   settings_about_title: 'Despre',
   settings_about_text: 'Work Journal v1.1\nBază de date: IndexedDB (local, în browser)\nNu se trimit date pe internet\nFolosește export/import pentru transfer',
+  settings_copyright_line: '© AppHarbor.studio — studio de aplicații offline.',
+  sidebar_copyright_line: '© AppHarbor.studio — aplicații offline',
 
   toast_entrySaved: 'Înregistrare adăugată',
   toast_entryUpdated: 'Înregistrare actualizată',
@@ -400,15 +402,31 @@ LANG_RO.inv_composite_part_default_short = 'Parte';
 LANG_RO.inv_composite_add_part = 'parte';
 LANG_RO.inv_composite_remove_part = 'Elimină partea';
 LANG_RO.dict_page_title = 'Dicționare';
-LANG_RO.dict_page_desc = 'Valorile se folosesc când un câmp din șablon are sursa «Dicționar».';
+LANG_RO.dict_page_desc = 'Dicționare integrate și proprii — valori pentru câmpuri cu sursa «Dicționar» sau unități din dicționar.';
+LANG_RO.dict_page_hint_custom = 'Un dicționar propriu poate fi șters cu butonul roșu «Șterge» sub lista de valori. Pe cele integrate nu le poți șterge.';
 LANG_RO.inv_dict_title_storage = 'Locații de depozitare';
 LANG_RO.inv_dict_title_units = 'Unități de măsură';
 LANG_RO.inv_dict_one_per_line = 'O valoare pe linie.';
+LANG_RO.inv_dict_btn_new = '+ Dicționar nou';
+LANG_RO.inv_dict_new_name_prompt = 'Numele dicționarului (ca în liste):';
+LANG_RO.inv_dict_title_label = 'Nume afișat';
+LANG_RO.inv_dict_slug_label = 'Cod';
+LANG_RO.inv_dict_delete = 'Șterge';
+LANG_RO.inv_dict_confirm_delete = 'Ștergi acest dicționar? Va trebui să corectezi manual câmpurile din șabloane care îl folosesc.';
+LANG_RO.inv_dict_system_badge = 'integrat';
+LANG_RO.inv_field_unit_value_source = 'Sursă unități';
+LANG_RO.inv_field_unit_options_label = 'Unități (separate prin virgulă)';
 LANG_RO.inv_toast_dictionary_saved = 'Dicționar salvat';
+LANG_RO.inv_toast_dictionary_created = 'Dicționar creat';
+LANG_RO.inv_toast_dictionary_deleted = 'Dicționar șters';
 LANG_RO.inv_toast_item_duplicated = 'Poziție duplicată';
 LANG_RO.inv_btn_duplicate_item = 'Duplicat';
 LANG_RO.inv_confirm_remove_field = 'Elimini acest câmp din șablon?';
 LANG_RO.inv_confirm_archive_template = 'Muți șablonul în arhivă? Nu vei putea crea registre noi din el.';
+LANG_RO.inv_btn_delete_template = 'Șterge șablonul';
+LANG_RO.inv_confirm_delete_template = 'Ștergi șablonul «{name}»?';
+LANG_RO.inv_confirm_delete_template_cascade = 'Ștergi șablonul «{name}» și toate registrele care îl folosesc ({n}) cu toate pozițiile? Acțiunea e ireversibilă.';
+LANG_RO.inv_toast_template_deleted = 'Șablon șters';
 LANG_RO.inv_confirm_delete_record = 'Ștergi acest registru cu toate pozițiile?';
 LANG_RO.inv_confirm_delete_item = 'Ștergi această poziție?';
 LANG_RO.inv_confirm_edit_item = 'Salvezi modificările acestei poziții?';

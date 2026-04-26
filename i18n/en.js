@@ -109,6 +109,8 @@ const LANG_EN = {
   settings_lang_desc: 'UI language (data is not affected)',
   settings_about_title: 'About',
   settings_about_text: 'Work Journal v1.1\nDatabase: IndexedDB (local, in browser)\nNo data is sent to the internet\nUse export/import to transfer data',
+  settings_copyright_line: '© AppHarbor.studio — offline application development studio.',
+  sidebar_copyright_line: '© AppHarbor.studio — offline apps',
 
   toast_entrySaved: 'Entry added',
   toast_entryUpdated: 'Entry updated',
@@ -402,15 +404,31 @@ LANG_EN.inv_composite_part_default_short = 'Part';
 LANG_EN.inv_composite_add_part = 'part';
 LANG_EN.inv_composite_remove_part = 'Remove part';
 LANG_EN.dict_page_title = 'Dictionaries';
-LANG_EN.dict_page_desc = 'Values are used when a template field uses source «Dictionary».';
+LANG_EN.dict_page_desc = 'Built-in and custom dictionaries supply values for template fields that use «Dictionary» or units from a dictionary.';
+LANG_EN.dict_page_hint_custom = 'You can remove a custom dictionary with the red «Delete» button below the value list. Built-in dictionaries cannot be deleted.';
 LANG_EN.inv_dict_title_storage = 'Storage locations';
 LANG_EN.inv_dict_title_units = 'Units of measure';
 LANG_EN.inv_dict_one_per_line = 'One value per line.';
+LANG_EN.inv_dict_btn_new = '+ New dictionary';
+LANG_EN.inv_dict_new_name_prompt = 'Dictionary name (as shown in pick lists):';
+LANG_EN.inv_dict_title_label = 'Display name';
+LANG_EN.inv_dict_slug_label = 'Code';
+LANG_EN.inv_dict_delete = 'Delete';
+LANG_EN.inv_dict_confirm_delete = 'Delete this dictionary? You will need to fix template fields that reference its code.';
+LANG_EN.inv_dict_system_badge = 'built-in';
+LANG_EN.inv_field_unit_value_source = 'Unit source';
+LANG_EN.inv_field_unit_options_label = 'Units (comma-separated)';
 LANG_EN.inv_toast_dictionary_saved = 'Dictionary saved';
+LANG_EN.inv_toast_dictionary_created = 'Dictionary created';
+LANG_EN.inv_toast_dictionary_deleted = 'Dictionary deleted';
 LANG_EN.inv_toast_item_duplicated = 'Item duplicated';
 LANG_EN.inv_btn_duplicate_item = 'Duplicate';
 LANG_EN.inv_confirm_remove_field = 'Remove this field from the template?';
 LANG_EN.inv_confirm_archive_template = 'Move template to archive? You will not be able to create new records from it.';
+LANG_EN.inv_btn_delete_template = 'Delete template';
+LANG_EN.inv_confirm_delete_template = 'Delete template «{name}»?';
+LANG_EN.inv_confirm_delete_template_cascade = 'Delete template «{name}» and all inventory records using it ({n}) with all items? This cannot be undone.';
+LANG_EN.inv_toast_template_deleted = 'Template deleted';
 LANG_EN.inv_confirm_delete_record = 'Delete this record with all items?';
 LANG_EN.inv_confirm_delete_item = 'Delete this item?';
 LANG_EN.inv_confirm_edit_item = 'Save changes to this item?';

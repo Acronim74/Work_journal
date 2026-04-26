@@ -118,6 +118,8 @@ const LANG_RU = {
   settings_lang_desc: 'Язык меню и подписей (данные не затрагиваются)',
   settings_about_title: 'О приложении',
   settings_about_text: 'Рабочий журнал v1.1\nБаза данных: IndexedDB (локально, в браузере)\nДанные не передаются в интернет\nДля переноса используйте экспорт/импорт',
+  settings_copyright_line: '© AppHarbor.studio — студия разработки офлайн-приложений.',
+  sidebar_copyright_line: '© AppHarbor.studio — офлайн-приложения',
 
   toast_entrySaved: 'Запись добавлена',
   toast_entryUpdated: 'Запись обновлена',
@@ -417,15 +419,31 @@ LANG_RU.inv_composite_part_default_short = 'Часть';
 LANG_RU.inv_composite_add_part = 'часть';
 LANG_RU.inv_composite_remove_part = 'Убрать часть';
 LANG_RU.dict_page_title = 'Справочники';
-LANG_RU.dict_page_desc = 'Значения используются в полях шаблона при выборе источника «Справочник».';
+LANG_RU.dict_page_desc = 'Встроенные и свои справочники — значения подставляются в поля шаблона при выборе «Справочник» или единиц из справочника.';
+LANG_RU.dict_page_hint_custom = 'Свой справочник можно удалить красной кнопкой «Удалить» под списком значений. Встроенные справочники удалить нельзя.';
 LANG_RU.inv_dict_title_storage = 'Места хранения';
 LANG_RU.inv_dict_title_units = 'Единицы измерения';
 LANG_RU.inv_dict_one_per_line = 'Одна строка — одно значение.';
+LANG_RU.inv_dict_btn_new = '+ Новый справочник';
+LANG_RU.inv_dict_new_name_prompt = 'Название справочника (как в списках выбора):';
+LANG_RU.inv_dict_title_label = 'Название в списках';
+LANG_RU.inv_dict_slug_label = 'Код';
+LANG_RU.inv_dict_delete = 'Удалить';
+LANG_RU.inv_dict_confirm_delete = 'Удалить этот справочник? Поля шаблонов, где указан его код, нужно будет поправить вручную.';
+LANG_RU.inv_dict_system_badge = 'встроенный';
+LANG_RU.inv_field_unit_value_source = 'Источник единиц';
+LANG_RU.inv_field_unit_options_label = 'Единицы (через запятую)';
 LANG_RU.inv_toast_dictionary_saved = 'Справочник сохранён';
+LANG_RU.inv_toast_dictionary_created = 'Справочник создан';
+LANG_RU.inv_toast_dictionary_deleted = 'Справочник удалён';
 LANG_RU.inv_toast_item_duplicated = 'Позиция скопирована';
 LANG_RU.inv_btn_duplicate_item = 'Копия';
 LANG_RU.inv_confirm_remove_field = 'Удалить это поле из шаблона?';
 LANG_RU.inv_confirm_archive_template = 'Отправить шаблон в архив? Создавать новые описи по нему будет нельзя.';
+LANG_RU.inv_btn_delete_template = 'Удалить шаблон';
+LANG_RU.inv_confirm_delete_template = 'Удалить шаблон «{name}»?';
+LANG_RU.inv_confirm_delete_template_cascade = 'Удалить шаблон «{name}» и все описи по нему ({n} шт.) вместе с позициями? Это необратимо.';
+LANG_RU.inv_toast_template_deleted = 'Шаблон удалён';
 LANG_RU.inv_confirm_delete_record = 'Удалить эту опись со всеми позициями?';
 LANG_RU.inv_confirm_delete_item = 'Удалить эту позицию?';
 LANG_RU.inv_confirm_edit_item = 'Сохранить изменения позиции?';

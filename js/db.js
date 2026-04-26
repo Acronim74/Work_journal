@@ -208,3 +208,4 @@ function dbDeleteInventoryRecord(id)     { return dbDelete('inventoryRecords', i
 function dbGetAllDictionaries()          { return dbAll('dictionaries'); }
 function dbGetDictionary(slug)           { return dbGet('dictionaries', slug); }
 function dbPutDictionary(o)              { return dbPut('dictionaries', o); }
+function dbDeleteDictionary(slug)        { return dbDelete('dictionaries', slug); }
