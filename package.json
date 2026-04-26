@@ -7,7 +7,10 @@
   "scripts": {
     "test": "node --test tests/inventory-logic.test.mjs",
     "start": "electron .",
+    "bump": "node scripts/bump-version.js",
+    "prepack": "node scripts/bump-version.js",
     "pack": "electron-builder --dir",
+    "predist": "node scripts/bump-version.js",
     "dist": "electron-builder --win",
     "dist:dir": "electron-builder --win --dir"
   },
@@ -23,26 +26,44 @@
       "!node_modules/.cache",
       "!dist"
     ],
-    "directories": { "output": "dist" },
+    "directories": {
+      "output": "dist"
+    },
     "extraResources": [
       {
         "from": "dictionaries",
         "to": "dictionaries",
-        "filter": ["*.bdic"]
+        "filter": [
+          "*.bdic"
+        ]
       }
     ],
     "win": {
       "signAndEditExecutable": false,
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable-${arch}.${ext}"
     },
-    "mac": { "target": "dmg" },
-    "linux": { "target": "AppImage" }
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }
