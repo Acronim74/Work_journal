@@ -596,18 +596,15 @@ body {
   z-index: 5000;
   padding: 20px;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, visibility 0.2s;
 }
 
 .modal-overlay.open {
   opacity: 1;
+  visibility: visible;
   pointer-events: all;
-}
-
-/* Закрытый оверлей: потомки перехватывают клики если pointer-events не задан явно (inheritance не работает надёжно). */
-.modal-overlay:not(.open) * {
-  pointer-events: none;
 }
 
 .modal {
