@@ -21,6 +21,7 @@
   "build": {
     "appId": "com.workjournal.app",
     "productName": "Work Journal",
+    "beforeBuild": "scripts/bump-version.js",
     "files": [
       "**/*",
       "!node_modules/.cache",
