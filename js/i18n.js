@@ -6,6 +6,8 @@ const LANGUAGES = {
   ru: LANG_RU,
   en: LANG_EN,
   pl: LANG_PL,
+  ro: LANG_RO,
+  pt: LANG_PT,
 };
 
 const LANG_STORAGE_KEY = 'wj_lang';

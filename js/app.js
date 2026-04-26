@@ -2451,8 +2451,14 @@ function clearPlanFilters() {
    HELP
    ============================================================ */
 function openHelp() {
-  const helpFiles = { ru: 'help-ru.html', en: 'help-en.html', pl: 'help-pl.html' };
-  const file = helpFiles[currentLang] || 'help-ru.html';
+  const helpFiles = {
+    ru: 'help-ru.html',
+    en: 'help-en.html',
+    pl: 'help-pl.html',
+    ro: 'help-ro.html',
+    pt: 'help-pt.html',
+  };
+  const file = helpFiles[currentLang] || 'help-en.html';
   if (isElectronContext()) {
     window.api.openHelp(file);
   } else {

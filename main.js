@@ -75,7 +75,7 @@ function setupSpellcheck(windowRef) {
   if (!windowRef || windowRef.isDestroyed()) return;
   const session = windowRef.webContents.session;
   session.setSpellCheckerDictionaryDownloadURL('file:///');
-  session.setSpellCheckerLanguages(['en-US', 'ru', 'pl']);
+  session.setSpellCheckerLanguages(['en-US', 'ru', 'pl', 'ro', 'pt-BR']);
 
   windowRef.webContents.on('context-menu', (_event, params) => {
     const menu = new Menu();
