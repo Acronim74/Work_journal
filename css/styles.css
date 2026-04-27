@@ -584,6 +584,7 @@ body {
   display: flex;
   opacity: 1;
   pointer-events: all;
+  will-change: transform;
 }
 
 @starting-style {

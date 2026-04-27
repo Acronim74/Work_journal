@@ -4,6 +4,11 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { pathToFileURL } = require('url');
 
+// Disable GPU compositing — fixes Electron hit-testing bug where scroll
+// compositing layers intercept mouse/keyboard events inside fixed-position
+// modal overlays after several DOM mutations.
+app.disableHardwareAcceleration();
+
 const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
 const PHOTO_SCOPES = new Set(['journal', 'issues']);
 
