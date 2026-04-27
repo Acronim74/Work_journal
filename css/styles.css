@@ -567,24 +567,29 @@ body {
    MODAL
    ============================================================ */
 .modal-overlay {
+  display: none;
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.75);
-  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 5000;
   padding: 20px;
   opacity: 0;
-  visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.2s ease, visibility 0.2s;
+  transition: opacity 0.2s ease, display 0.2s allow-discrete;
 }
 
 .modal-overlay.open {
+  display: flex;
   opacity: 1;
-  visibility: visible;
   pointer-events: all;
+}
+
+@starting-style {
+  .modal-overlay.open {
+    opacity: 0;
+  }
 }
 
 .modal {
