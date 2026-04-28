@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld('api', {
   importExchange: () => ipcRenderer.invoke('db:importExchange'),
   loadDb: () => ipcRenderer.invoke('db:load'),
   openHelp: (filename) => ipcRenderer.invoke('help:open', filename),
+  refocusWindow: () => ipcRenderer.invoke('window:refocus'),
 });

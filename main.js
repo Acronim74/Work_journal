@@ -339,6 +339,15 @@ app.whenReady().then(() => {
     createHelpWindow(filename);
   });
 
+  // Reset focus on the WebContents — даёт Windows новый WM_SETFOCUS,
+  // что очищает накопленные TSF-контексты после массового создания/удаления текстовых полей.
+  ipcMain.handle('window:refocus', async () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      try { mainWindow.webContents.focus(); } catch (_) {}
+    }
+    return true;
+  });
+
   createMainWindow();
   setupSpellcheck(mainWindow);
 
