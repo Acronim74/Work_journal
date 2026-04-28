@@ -358,6 +358,10 @@ async function openViewModal(entryId) {
 }
 
 function closeViewModal() {
-  document.getElementById('viewModal').classList.remove('open');
+  if (typeof _modalHide === 'function') {
+    _modalHide('viewModal');
+  } else {
+    document.getElementById('viewModal')?.classList.remove('open');
+  }
   _viewPhotos = [];
 }

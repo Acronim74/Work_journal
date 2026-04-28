@@ -2,6 +2,19 @@
    app.js — main application logic
    ============================================================ */
 
+/**
+ * Скрыть модальное окно: сначала явный blur активного элемента (TSF получает
+ * чистый сигнал disassociation), затем убрать класс .open → display:none через CSS.
+ */
+function _modalHide(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.contains(document.activeElement) && document.activeElement !== document.body) {
+    document.activeElement.blur();
+  }
+  el.classList.remove('open');
+}
+
 const PAGES = ['journal', 'categories', 'reports', 'issues', 'plans', 'tasks',
   'inventory', 'inventory-templates', 'dictionaries', 'archive', 'settings'];
 /** Относительный путь к файлу обмена (Electron): см. main.js EXCHANGE_DIR / EXCHANGE_FILENAME */
@@ -299,7 +312,7 @@ function openEntryModal(entry = null) {
 }
 
 function closeEntryModal() {
-  document.getElementById('entryModal').classList.remove('open');
+  _modalHide('entryModal');
   editingEntryId = null;
 }
 
@@ -491,7 +504,7 @@ function openCatModal() {
 }
 
 function closeCatModal() {
-  document.getElementById('catModal').classList.remove('open');
+  _modalHide('catModal');
 }
 
 async function saveCat() {
@@ -950,7 +963,7 @@ let appendingTaskId = null;
 let completingTaskId = null;
 
 function closeTaskCreateModal() {
-  document.getElementById('taskCreateModal')?.classList.remove('open');
+  _modalHide('taskCreateModal');
   taskCreateDraft = null;
 }
 
@@ -1038,7 +1051,7 @@ async function saveTaskCreateModal() {
 }
 
 function closeTaskAppendModal() {
-  document.getElementById('taskAppendModal')?.classList.remove('open');
+  _modalHide('taskAppendModal');
   appendingTaskId = null;
 }
 
@@ -1101,7 +1114,7 @@ async function markTaskReturned(taskId) {
 }
 
 function closeTaskCompleteModal() {
-  document.getElementById('taskCompleteModal')?.classList.remove('open');
+  _modalHide('taskCompleteModal');
   completingTaskId = null;
 }
 
@@ -1631,7 +1644,7 @@ function openIssueModal(issue = null) {
 }
 
 function closeIssueModal() {
-  document.getElementById('issueModal').classList.remove('open');
+  _modalHide('issueModal');
   editingIssueId = null;
 }
 
@@ -1773,7 +1786,7 @@ async function openResolveIssueModal(issueId) {
 }
 
 function closeResolveIssueModal() {
-  document.getElementById('issueResolveModal').classList.remove('open');
+  _modalHide('issueResolveModal');
   resolvingIssueId = null;
 }
 
@@ -2056,7 +2069,7 @@ function openPlanModal(plan = null) {
 }
 
 function closePlanModal() {
-  document.getElementById('planModal').classList.remove('open');
+  _modalHide('planModal');
   editingPlanId = null;
 }
 
@@ -2214,7 +2227,7 @@ async function openResolvePlanModal(planId) {
 }
 
 function closeResolvePlanModal() {
-  document.getElementById('planResolveModal').classList.remove('open');
+  _modalHide('planResolveModal');
   resolvingPlanId = null;
 }
 

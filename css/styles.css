@@ -575,22 +575,10 @@ body {
   justify-content: center;
   z-index: 5000;
   padding: 20px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease, display 0.2s allow-discrete;
 }
 
 .modal-overlay.open {
   display: flex;
-  opacity: 1;
-  pointer-events: all;
-  will-change: transform;
-}
-
-@starting-style {
-  .modal-overlay.open {
-    opacity: 0;
-  }
 }
 
 .modal {

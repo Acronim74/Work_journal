@@ -115,6 +115,19 @@ function invToast(msg, kind) {
   if (typeof toast === 'function') toast(msg, kind);
 }
 
+/**
+ * Скрыть модалку: сначала явный blur (TSF получает чистый сигнал disassociation),
+ * затем убрать класс .open → display:none через CSS.
+ */
+function _invModalHide(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.contains(document.activeElement) && document.activeElement !== document.body) {
+    document.activeElement.blur();
+  }
+  el.classList.remove('open');
+}
+
 function invScheduleSave() {
   if (typeof window.scheduleSharedDbSave === 'function') window.scheduleSharedDbSave();
 }
@@ -243,7 +256,7 @@ async function showInventoryTemplateModal() {
 }
 
 function closeInventoryTemplateModal() {
-  document.getElementById('invTemplateModal')?.classList.remove('open');
+  _invModalHide('invTemplateModal');
   invTplEditing = null;
 }
 
@@ -730,7 +743,7 @@ async function openInventoryRecordCreate() {
 }
 
 function closeInventoryRecordCreateModal() {
-  document.getElementById('invRecordCreateModal')?.classList.remove('open');
+  _invModalHide('invRecordCreateModal');
 }
 
 async function saveInventoryRecordCreateModal() {
@@ -933,7 +946,7 @@ async function renameInventoryRecord(id) {
 
 function closeInvRecordRenameModal() {
   invRecordRenameId = null;
-  document.getElementById('invRecordRenameModal')?.classList.remove('open');
+  _invModalHide('invRecordRenameModal');
 }
 
 async function confirmInvRecordRenameModal() {
@@ -969,26 +982,13 @@ async function confirmInvRecordRenameModal() {
 let invItemEditing = null; // { recordId, itemId|null, values:{}, _origValues:{} }
 let invRecordRenameId = null; // id описи для модалки переименования
 
-/** Закрыть прочие модалки инвентаризации, чтобы оверлеи не перекрывали друг друга (иначе «поля не кликаются»). */
+/** Закрыть прочие модалки инвентаризации через штатные close-функции (с blur и полной очисткой). */
 function dismissInventoryModals(keep) {
-  if (keep !== 'template') {
-    document.getElementById('invTemplateModal')?.classList.remove('open');
-    invTplEditing = null;
-  }
-  if (keep !== 'item') {
-    document.getElementById('invItemModal')?.classList.remove('open');
-    invItemEditing = null;
-  }
-  if (keep !== 'recordCreate') {
-    document.getElementById('invRecordCreateModal')?.classList.remove('open');
-  }
-  if (keep !== 'dictCreate') {
-    document.getElementById('invDictCreateModal')?.classList.remove('open');
-  }
-  if (keep !== 'recordRename') {
-    document.getElementById('invRecordRenameModal')?.classList.remove('open');
-    invRecordRenameId = null;
-  }
+  if (keep !== 'template')     closeInventoryTemplateModal();
+  if (keep !== 'item')         closeInventoryItemModal();
+  if (keep !== 'recordCreate') closeInventoryRecordCreateModal();
+  if (keep !== 'dictCreate')   closeInvDictCreateModal();
+  if (keep !== 'recordRename') closeInvRecordRenameModal();
 }
 
 function openInvDictCreateModal() {
@@ -1000,7 +1000,7 @@ function openInvDictCreateModal() {
 }
 
 function closeInvDictCreateModal() {
-  document.getElementById('invDictCreateModal')?.classList.remove('open');
+  _invModalHide('invDictCreateModal');
 }
 
 async function confirmInvDictCreateModal() {
@@ -1170,13 +1170,13 @@ function renderInventoryItemFieldInput(field, dictMap) {
         ).join('');
         inputHtml = `<div class="inv-num-dict-wrap" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <input type="number" step="any" class="form-input" style="min-width:120px;flex:1" id="${id}"
-            value="${o.amount == null ? '' : invEsc(o.amount)}"
+            spellcheck="false" value="${o.amount == null ? '' : invEsc(o.amount)}"
             data-inv-key="${invEsc(field.key)}">
           <select class="form-select" style="min-width:140px;flex:1" data-inv-key="${invEsc(field.key)}">${opts}</select>
         </div>`;
       } else {
-        inputHtml = `<input type="number" step="any" class="form-input" id="${id}" value="${val == null ? '' : invEsc(val)}"
-                          data-inv-key="${invEsc(field.key)}">`;
+        inputHtml = `<input type="number" step="any" class="form-input" id="${id}" spellcheck="false"
+                          value="${val == null ? '' : invEsc(val)}" data-inv-key="${invEsc(field.key)}">`;
       }
       break;
     case 'select': {
@@ -1213,8 +1213,8 @@ function renderInventoryItemFieldInput(field, dictMap) {
       inputHtml = `<div class="inv-composite-inputs" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${parts.map((pl, pi) => `
         <div style="flex:1;min-width:72px;">
           <div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">${invEsc(pl)}</div>
-          <input type="text" class="form-input" value="${invEsc(arr[pi] || '')}"
-            data-inv-key="${invEsc(field.key)}" data-inv-part="${pi}">
+          <input type="text" class="form-input" spellcheck="false"
+            value="${invEsc(arr[pi] || '')}" data-inv-key="${invEsc(field.key)}" data-inv-part="${pi}">
         </div>`).join('')}</div>`;
       break;
     }
@@ -1228,8 +1228,8 @@ function renderInventoryItemFieldInput(field, dictMap) {
       break;
     case 'text':
     default:
-      inputHtml = `<input type="text" class="form-input" id="${id}" value="${invEsc(val || '')}"
-                          data-inv-key="${invEsc(field.key)}">`;
+      inputHtml = `<input type="text" class="form-input" id="${id}" spellcheck="false"
+                          value="${invEsc(val || '')}" data-inv-key="${invEsc(field.key)}">`;
   }
   return `<div class="form-group full"><label class="form-label">${labelHtml}</label>${inputHtml}</div>`;
 }
@@ -1282,7 +1282,16 @@ function onInventoryItemFieldChange(key, raw, type) {
 }
 
 function closeInventoryItemModal() {
-  document.getElementById('invItemModal')?.classList.remove('open');
+  _invModalHide('invItemModal');
+  // Очищаем форму и снимаем делегирование — при следующем открытии всё пересоздаётся с нуля,
+  // что предотвращает накопление зависших TSF-контекстов в Windows.
+  const body = document.getElementById('invItemFormBody');
+  if (body) {
+    body.removeEventListener('input',  invItemFormDelegatedInput);
+    body.removeEventListener('change', invItemFormDelegatedChange);
+    body.removeAttribute('data-inv-deleg');
+    body.innerHTML = '';
+  }
   invItemEditing = null;
 }
 
