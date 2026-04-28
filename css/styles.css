@@ -564,6 +564,19 @@ body {
 .filter-bar .form-input { flex: 1; min-width: 140px; }
 
 /* ============================================================
+   INLINE ADD-ITEM FORM (не модалка — нет TSF-накопления в Electron)
+   ============================================================ */
+#invInlineItemForm {
+  margin-top: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+}
+#invInlineItemForm.hidden { display: none; }
+
+/* ============================================================
    MODAL  (native <dialog> element with showModal())
    ============================================================ */
 dialog.modal {

@@ -800,6 +800,7 @@ function closeInventoryRecordDetail() {
   const detail = document.getElementById('inventoryRecordDetail');
   const list   = document.getElementById('inventoryRecordsList');
   if (!detail || !list) return;
+  closeInlineItemForm(); // скрыть встроенную форму добавления при выходе из описи
   delete detail.dataset.recId;
   detail.classList.add('hidden');
   detail.innerHTML = '';
@@ -975,10 +976,11 @@ async function confirmInvRecordRenameModal() {
 let invItemEditing = null; // { recordId, itemId|null, values:{}, _origValues:{} }
 let invRecordRenameId = null; // id описи для модалки переименования
 
-/** Закрыть прочие модалки инвентаризации через штатные close-функции (с blur и полной очисткой). */
+/** Закрыть прочие модалки инвентаризации через штатные close-функции. */
 function dismissInventoryModals(keep) {
   if (keep !== 'template')     closeInventoryTemplateModal();
   if (keep !== 'item')         closeInventoryItemModal();
+  if (keep !== 'inlineAdd')    closeInlineItemForm();
   if (keep !== 'recordCreate') closeInventoryRecordCreateModal();
   if (keep !== 'dictCreate')   closeInvDictCreateModal();
   if (keep !== 'recordRename') closeInvRecordRenameModal();
@@ -1015,19 +1017,122 @@ async function confirmInvDictCreateModal() {
   await renderDictionariesPage();
 }
 
+/** Ключ структуры формы для встроенной формы добавления позиции. */
+let _invInlineFormKey = null;
+
+/**
+ * Открыть встроенную форму добавления позиции (НЕ модалку).
+ * Форма рендерится один раз, потом только обновляются значения — элементы <input>
+ * остаются теми же, TSF-контексты Electron/Windows не накапливаются.
+ */
 async function openInventoryItemAdd(recordId) {
+  // Закрываем другие модалки инвентаризации (но не саму встроенную форму)
+  closeInventoryTemplateModal();
+  closeInventoryItemModal();
+  closeInventoryRecordCreateModal();
+  closeInvDictCreateModal();
+  closeInvRecordRenameModal();
+
   const rec = await dbGetInventoryRecord(recordId);
   if (!rec) return;
   const fields = invGetRecordFields(rec);
+  if (!fields.length) {
+    invToast(L.inv_err_no_fields || 'Шаблон не содержит полей', 'error');
+    return;
+  }
+
   const initial = {};
   fields.forEach(f => { if (f.key) initial[f.key] = invDefaultEmptyValue(f); });
-  invItemEditing = {
-    recordId,
-    itemId: null,
-    values: initial,
-    _origValues: { ...initial },
-  };
-  await showInventoryItemModal(rec, true);
+  invItemEditing = { recordId, itemId: null, values: { ...initial }, _origValues: { ...initial } };
+
+  const dictMap = await invLoadDictionariesMap();
+  const formKey = _invItemFormKeyOf(fields);
+  const container = document.getElementById('invInlineItemForm');
+  const existingBody = document.getElementById('invInlineFormBody');
+
+  if (formKey !== _invInlineFormKey || !existingBody) {
+    // Шаблон изменился или форма пустая — строим HTML заново
+    container.innerHTML = `
+      <div class="modal-header">
+        <div class="modal-title" data-i18n="inv_modal_item_add_title">${invEsc(L.inv_modal_item_add_title || 'Новая позиция')}</div>
+        <button type="button" class="btn btn-ghost btn-icon" onclick="closeInlineItemForm()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid" id="invInlineFormBody">
+          ${fields.map(f => renderInventoryItemFieldInput(f, dictMap)).join('')}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeInlineItemForm()" data-i18n="btn_cancel">Отмена</button>
+        <button type="button" class="btn btn-primary" onclick="saveInlineInventoryItem()" data-i18n="btn_save">Сохранить</button>
+      </div>`;
+    _invInlineFormKey = formKey;
+    // Вешаем делегированные обработчики один раз
+    const body = document.getElementById('invInlineFormBody');
+    body.addEventListener('input',  invItemFormDelegatedInput);
+    body.addEventListener('change', invItemFormDelegatedChange);
+  } else {
+    // Тот же шаблон — сбрасываем значения на месте, не трогая DOM-элементы
+    _invItemFormSetValues(existingBody, fields);
+  }
+
+  container.classList.remove('hidden');
+  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setTimeout(() => document.getElementById('invInlineFormBody')?.querySelector('input,select,textarea')?.focus(), 80);
+}
+
+/** Закрыть встроенную форму добавления. */
+function closeInlineItemForm() {
+  document.getElementById('invInlineItemForm')?.classList.add('hidden');
+  invItemEditing = null;
+}
+
+/** Сохранить позицию из встроенной формы и сбросить форму для следующей. */
+async function saveInlineInventoryItem() {
+  if (!invItemEditing || invItemEditing.itemId != null) return;
+  const rec = await dbGetInventoryRecord(invItemEditing.recordId);
+  if (!rec) { closeInlineItemForm(); return; }
+  const fields = invGetRecordFields(rec);
+
+  // Финализация составных полей
+  for (const f of fields) {
+    if (f.type === 'composite') {
+      invItemEditing.values[f.key] = invCompositeToArray(f, invItemEditing.values[f.key]);
+    }
+  }
+  // Валидация обязательных полей
+  for (const f of fields) {
+    if (!f.required) continue;
+    if (invIsEmptyValue(f, invItemEditing.values[f.key])) {
+      invToast((L.inv_err_field_required || 'Обязательное поле:') + ' ' + f.label, 'error');
+      return;
+    }
+  }
+
+  const outVals = invDeepClone(invItemEditing.values);
+  const items = Array.isArray(rec.items) ? rec.items.slice() : [];
+  items.push({ id: invUuid(), values: outVals, createdAt: invNowIso(), updatedAt: invNowIso() });
+  rec.items = items;
+  rec.updatedAt = invNowIso();
+  await dbPutInventoryRecord(rec);
+
+  invToast(L.inv_toast_item_added || 'Позиция добавлена', 'success');
+  invScheduleSave();
+
+  const recordId = invItemEditing.recordId;
+
+  // Сброс формы для следующей позиции (те же DOM-элементы, только значения очищаются)
+  const initial2 = {};
+  fields.forEach(f => { if (f.key) initial2[f.key] = invDefaultEmptyValue(f); });
+  invItemEditing = { recordId, itemId: null, values: { ...initial2 }, _origValues: { ...initial2 } };
+  const body = document.getElementById('invInlineFormBody');
+  if (body) _invItemFormSetValues(body, fields);
+
+  // Перерисовываем таблицу позиций (invInlineItemForm — соседний div, не затрагивается)
+  await renderInventoryRecordDetail(recordId);
+
+  // Фокус на первое поле для быстрого ввода следующей позиции
+  setTimeout(() => body?.querySelector('input,select,textarea')?.focus(), 50);
 }
 
 async function openInventoryItemEdit(recordId, itemId) {
