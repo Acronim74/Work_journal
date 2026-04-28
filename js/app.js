@@ -2,17 +2,10 @@
    app.js — main application logic
    ============================================================ */
 
-/**
- * Скрыть модальное окно: сначала явный blur активного элемента (TSF получает
- * чистый сигнал disassociation), затем убрать класс .open → display:none через CSS.
- */
+/** Скрыть модальное окно через нативный dialog API. */
 function _modalHide(id) {
   const el = document.getElementById(id);
-  if (!el) return;
-  if (el.contains(document.activeElement) && document.activeElement !== document.body) {
-    document.activeElement.blur();
-  }
-  el.classList.remove('open');
+  if (el?.open) el.close();
 }
 
 const PAGES = ['journal', 'categories', 'reports', 'issues', 'plans', 'tasks',
@@ -307,7 +300,7 @@ function openEntryModal(entry = null) {
 
   initPhotoPicker(entry ? (entry.photos || []) : [], 'journal', 'photoPickerGrid', 'photoCounter');
 
-  document.getElementById('entryModal').classList.add('open');
+  document.getElementById('entryModal').showModal();
   setTimeout(() => document.getElementById('fDesc').focus(), 200);
 }
 
@@ -318,7 +311,7 @@ function closeEntryModal() {
 
 // Called from Cancel — откат только если открыто окно записи (не трогаем черновик поломки)
 async function cancelEntryModal() {
-  if (document.getElementById('entryModal').classList.contains('open')) {
+  if (document.getElementById('entryModal')?.open) {
     await rollbackPhotos();
   }
   closeEntryModal();
@@ -499,7 +492,7 @@ function populateCategorySelect(elementId, withAll, selected = '') {
 
 function openCatModal() {
   document.getElementById('fCatName').value = '';
-  document.getElementById('catModal').classList.add('open');
+  document.getElementById('catModal').showModal();
   setTimeout(() => document.getElementById('fCatName').focus(), 200);
 }
 
@@ -981,7 +974,7 @@ async function openTaskCreateFromIssue(issueId) {
   const el = document.getElementById('taskCreateSourceLabel');
   if (el) el.innerHTML = taskCreateSourceLabelHtml(snap, L.tasks_badge_issue);
   document.getElementById('taskCreateAssignees').value = '';
-  document.getElementById('taskCreateModal')?.classList.add('open');
+  document.getElementById('taskCreateModal')?.showModal();
   applyI18n();
   setTimeout(() => document.getElementById('taskCreateAssignees')?.focus(), 50);
 }
@@ -1000,7 +993,7 @@ async function openTaskCreateFromPlan(planId) {
   const el = document.getElementById('taskCreateSourceLabel');
   if (el) el.innerHTML = taskCreateSourceLabelHtml(snap, L.tasks_badge_plan);
   document.getElementById('taskCreateAssignees').value = '';
-  document.getElementById('taskCreateModal')?.classList.add('open');
+  document.getElementById('taskCreateModal')?.showModal();
   applyI18n();
   setTimeout(() => document.getElementById('taskCreateAssignees')?.focus(), 50);
 }
@@ -1061,7 +1054,7 @@ async function openTaskAppendModal(taskId) {
   if (!taskIsOpenStatus(t.status)) { toast(L.tasks_err_source_closed, 'error'); return; }
   appendingTaskId = taskId;
   document.getElementById('taskAppendText').value = '';
-  document.getElementById('taskAppendModal')?.classList.add('open');
+  document.getElementById('taskAppendModal')?.showModal();
   setTimeout(() => document.getElementById('taskAppendText')?.focus(), 50);
 }
 
@@ -1119,7 +1112,7 @@ function closeTaskCompleteModal() {
 }
 
 async function cancelTaskCompleteModal() {
-  if (document.getElementById('taskCompleteModal')?.classList.contains('open')) {
+  if (document.getElementById('taskCompleteModal')?.open) {
     await rollbackPhotos();
   }
   closeTaskCompleteModal();
@@ -1161,7 +1154,7 @@ async function openTaskCompleteModal(taskId) {
   document.getElementById('tcPartsList').innerHTML = '';
   initPhotoPicker([], 'journal', 'tcPhotoPickerGrid', 'tcPhotoCounter');
 
-  document.getElementById('taskCompleteModal')?.classList.add('open');
+  document.getElementById('taskCompleteModal')?.showModal();
   applyI18n();
   setTimeout(() => document.getElementById('tcActions')?.focus(), 80);
 }
@@ -1557,15 +1550,15 @@ document.addEventListener('keydown', e => {
     if (typeof closeInvDictCreateModal === 'function') closeInvDictCreateModal();
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    if (document.getElementById('entryModal').classList.contains('open')) saveEntry();
-    if (document.getElementById('catModal').classList.contains('open'))   saveCat();
-    if (document.getElementById('issueModal').classList.contains('open')) saveIssue();
-    if (document.getElementById('issueResolveModal').classList.contains('open')) saveResolveIssue();
-    if (document.getElementById('planModal').classList.contains('open'))  savePlan();
-    if (document.getElementById('planResolveModal').classList.contains('open')) saveResolvePlan();
-    if (document.getElementById('taskAppendModal').classList.contains('open')) saveTaskAppendModal();
-    if (document.getElementById('taskCreateModal').classList.contains('open')) saveTaskCreateModal();
-    if (document.getElementById('taskCompleteModal').classList.contains('open')) saveTaskCompleteModal();
+    if (document.getElementById('entryModal')?.open)        saveEntry();
+    if (document.getElementById('catModal')?.open)          saveCat();
+    if (document.getElementById('issueModal')?.open)        saveIssue();
+    if (document.getElementById('issueResolveModal')?.open) saveResolveIssue();
+    if (document.getElementById('planModal')?.open)         savePlan();
+    if (document.getElementById('planResolveModal')?.open)  saveResolvePlan();
+    if (document.getElementById('taskAppendModal')?.open)   saveTaskAppendModal();
+    if (document.getElementById('taskCreateModal')?.open)   saveTaskCreateModal();
+    if (document.getElementById('taskCompleteModal')?.open) saveTaskCompleteModal();
   }
 });
 
@@ -1595,6 +1588,11 @@ document.getElementById('taskAppendModal')?.addEventListener('click', e => {
 });
 document.getElementById('taskCompleteModal')?.addEventListener('click', e => {
   if (e.target === e.currentTarget) cancelTaskCompleteModal();
+});
+
+// Prevent native ESC-close on all <dialog> modals — our keydown handler manages cleanup + close
+document.querySelectorAll('dialog.modal').forEach(dlg => {
+  dlg.addEventListener('cancel', e => e.preventDefault());
 });
 
 document.getElementById('btnOpenNewEntry')?.addEventListener('click', () => openEntryModal());
@@ -1639,7 +1637,7 @@ function openIssueModal(issue = null) {
 
   initPhotoPicker(issue ? (issue.photos || []) : [], 'issues', 'issuePhotoPickerGrid', 'issuePhotoCounter');
 
-  document.getElementById('issueModal').classList.add('open');
+  document.getElementById('issueModal').showModal();
   document.getElementById('iDesc').focus();
 }
 
@@ -1649,7 +1647,7 @@ function closeIssueModal() {
 }
 
 async function cancelIssueModal() {
-  if (document.getElementById('issueModal').classList.contains('open')) {
+  if (document.getElementById('issueModal')?.open) {
     await rollbackPhotos();
   }
   closeIssueModal();
@@ -1780,7 +1778,7 @@ async function openResolveIssueModal(issueId) {
   document.getElementById('rActions').value = '';
   document.getElementById('resolvePartsList').innerHTML = '';
   initPhotoPicker([], 'journal', 'resolvePhotoPickerGrid', 'resolvePhotoCounter');
-  document.getElementById('issueResolveModal').classList.add('open');
+  document.getElementById('issueResolveModal').showModal();
   applyI18n();
   setTimeout(() => document.getElementById('rActions').focus(), 100);
 }
@@ -1791,7 +1789,7 @@ function closeResolveIssueModal() {
 }
 
 async function cancelResolveIssueModal() {
-  if (document.getElementById('issueResolveModal').classList.contains('open')) {
+  if (document.getElementById('issueResolveModal')?.open) {
     await rollbackPhotos();
   }
   closeResolveIssueModal();
@@ -2064,7 +2062,7 @@ function openPlanModal(plan = null) {
   populateCategorySelect('pCat', false, plan ? plan.category : '');
   applyI18n();
 
-  document.getElementById('planModal').classList.add('open');
+  document.getElementById('planModal').showModal();
   document.getElementById('pDesc').focus();
 }
 
@@ -2221,7 +2219,7 @@ async function openResolvePlanModal(planId) {
   document.getElementById('prActions').value = '';
   document.getElementById('planResolvePartsList').innerHTML = '';
   initPhotoPicker([], 'journal', 'planResolvePhotoPickerGrid', 'planResolvePhotoCounter');
-  document.getElementById('planResolveModal').classList.add('open');
+  document.getElementById('planResolveModal').showModal();
   applyI18n();
   setTimeout(() => document.getElementById('prActions').focus(), 100);
 }
@@ -2232,7 +2230,7 @@ function closeResolvePlanModal() {
 }
 
 async function cancelResolvePlanModal() {
-  if (document.getElementById('planResolveModal').classList.contains('open')) {
+  if (document.getElementById('planResolveModal')?.open) {
     await rollbackPhotos();
   }
   closeResolvePlanModal();

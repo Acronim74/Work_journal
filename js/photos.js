@@ -354,14 +354,11 @@ async function openViewModal(entryId) {
 
   modal.querySelector('.view-edit-btn').setAttribute('onclick', `closeViewModal(); editEntry(${entry.id})`);
 
-  modal.classList.add('open');
+  modal.showModal();
 }
 
 function closeViewModal() {
-  if (typeof _modalHide === 'function') {
-    _modalHide('viewModal');
-  } else {
-    document.getElementById('viewModal')?.classList.remove('open');
-  }
+  const el = document.getElementById('viewModal');
+  if (el?.open) el.close();
   _viewPhotos = [];
 }

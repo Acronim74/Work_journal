@@ -115,17 +115,10 @@ function invToast(msg, kind) {
   if (typeof toast === 'function') toast(msg, kind);
 }
 
-/**
- * Скрыть модалку: сначала явный blur (TSF получает чистый сигнал disassociation),
- * затем убрать класс .open → display:none через CSS.
- */
+/** Скрыть модалку через нативный dialog API. */
 function _invModalHide(id) {
   const el = document.getElementById(id);
-  if (!el) return;
-  if (el.contains(document.activeElement) && document.activeElement !== document.body) {
-    document.activeElement.blur();
-  }
-  el.classList.remove('open');
+  if (el?.open) el.close();
 }
 
 function invScheduleSave() {
@@ -251,7 +244,7 @@ async function showInventoryTemplateModal() {
   const delBtn = document.getElementById('invTemplateDeleteBtn');
   if (delBtn) delBtn.style.display = invTplEditing?.id ? '' : 'none';
   await renderInventoryTemplateFieldsList();
-  document.getElementById('invTemplateModal')?.classList.add('open');
+  document.getElementById('invTemplateModal')?.showModal();
   setTimeout(() => document.getElementById('invTemplateNameInput')?.focus(), 50);
 }
 
@@ -738,7 +731,7 @@ async function openInventoryRecordCreate() {
     .map(t => `<option value="${t.id}">${invEsc(invTplName(t))}</option>`).join('');
   document.getElementById('invRecCreateName').value = '';
   document.getElementById('invRecCreateDate').value = invToday();
-  document.getElementById('invRecordCreateModal')?.classList.add('open');
+  document.getElementById('invRecordCreateModal')?.showModal();
   setTimeout(() => document.getElementById('invRecCreateName')?.focus(), 50);
 }
 
@@ -937,7 +930,7 @@ async function renameInventoryRecord(id) {
   invRecordRenameId = id;
   const input = document.getElementById('invRecordRenameInput');
   if (input) input.value = rec.name || '';
-  document.getElementById('invRecordRenameModal')?.classList.add('open');
+  document.getElementById('invRecordRenameModal')?.showModal();
   setTimeout(() => {
     input?.focus();
     if (input && typeof input.select === 'function') input.select();
@@ -995,7 +988,7 @@ function openInvDictCreateModal() {
   dismissInventoryModals('dictCreate');
   const input = document.getElementById('invDictCreateNameInput');
   if (input) input.value = '';
-  document.getElementById('invDictCreateModal')?.classList.add('open');
+  document.getElementById('invDictCreateModal')?.showModal();
   setTimeout(() => input?.focus(), 50);
 }
 
@@ -1080,7 +1073,7 @@ async function showInventoryItemModal(rec, isNew) {
   const dictMap = await invLoadDictionariesMap();
   body.innerHTML = `<div class="form-grid">${fields.map(f => renderInventoryItemFieldInput(f, dictMap)).join('')}</div>`;
   invItemFormEnsureDelegatedHandlers();
-  document.getElementById('invItemModal')?.classList.add('open');
+  document.getElementById('invItemModal')?.showModal();
   setTimeout(() => body.querySelector('input,select,textarea')?.focus(), 50);
 }
 

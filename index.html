@@ -382,8 +382,7 @@
 </div>
 
 <!-- ===================== MODAL: ENTRY ===================== -->
-<div class="modal-overlay" id="entryModal">
-  <div class="modal">
+<dialog class="modal" id="entryModal">
     <div class="modal-header">
       <div class="modal-title" id="modalTitle" data-i18n="modal_newEntry">Новая запись</div>
       <button class="btn btn-ghost btn-icon" onclick="closeEntryModal()">✕</button>
@@ -430,12 +429,10 @@
       <button class="btn btn-ghost"   onclick="cancelEntryModal()" data-i18n="btn_cancel">Отмена</button>
       <button class="btn btn-primary" onclick="saveEntry()"        data-i18n="btn_save">Сохранить</button>
     </div>
-  </div>
-</div>
+</dialog>
 
 <!-- ===================== MODAL: CATEGORY ===================== -->
-<div class="modal-overlay" id="catModal">
-  <div class="modal" style="max-width:380px">
+<dialog class="modal" id="catModal" style="max-width:380px">
     <div class="modal-header">
       <div class="modal-title" data-i18n="modal_newCat">Новая категория</div>
       <button class="btn btn-ghost btn-icon" onclick="closeCatModal()">✕</button>
@@ -452,15 +449,13 @@
       <button class="btn btn-ghost"   onclick="closeCatModal()" data-i18n="btn_cancel">Отмена</button>
       <button class="btn btn-primary" onclick="saveCat()"       data-i18n="btn_save">Добавить</button>
     </div>
-  </div>
-</div>
+</dialog>
 
 <!-- ===================== TOASTS ===================== -->
 <div class="toast-container" id="toastContainer"></div>
 
 <!-- ===================== MODAL: VIEW ENTRY ===================== -->
-<div class="modal-overlay" id="viewModal">
-  <div class="modal view-modal">
+<dialog class="modal view-modal" id="viewModal">
     <div class="modal-header">
       <div class="modal-title" data-i18n="view_modal_title">Просмотр записи</div>
       <button class="btn btn-ghost btn-icon" onclick="closeViewModal()">✕</button>
@@ -502,8 +497,7 @@
       <button class="btn btn-ghost" onclick="closeViewModal()" data-i18n="btn_cancel">Закрыть</button>
       <button class="btn btn-primary view-edit-btn" data-i18n="view_edit">Редактировать</button>
     </div>
-  </div>
-</div>
+</dialog>
 
 <!-- ===================== LIGHTBOX ===================== -->
 <div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
@@ -517,8 +511,7 @@
 </div>
 
 <!-- ===================== MODAL: ISSUE ===================== -->
-<div class="modal-overlay" id="issueModal">
-  <div class="modal" style="max-width:520px">
+<dialog class="modal" id="issueModal" style="max-width:520px">
     <div class="modal-header">
       <div class="modal-title" id="issueModalTitle" data-i18n="modal_newIssue">Новая поломка</div>
       <button class="btn btn-ghost btn-icon" onclick="cancelIssueModal()">✕</button>
@@ -569,12 +562,10 @@
       <button class="btn btn-ghost"   onclick="cancelIssueModal()" data-i18n="btn_cancel">Отмена</button>
       <button class="btn btn-primary" onclick="saveIssue()"        data-i18n="btn_save">Сохранить</button>
     </div>
-  </div>
-</div>
+</dialog>
 
 <!-- ===================== MODAL: RESOLVE ISSUE (устранение → журнал работ) ===================== -->
-<div class="modal-overlay" id="issueResolveModal">
-  <div class="modal">
+<dialog class="modal" id="issueResolveModal">
     <div class="modal-header">
       <div class="modal-title" data-i18n="modal_resolveIssue">Устранение поломки</div>
       <button class="btn btn-ghost btn-icon" onclick="cancelResolveIssueModal()">✕</button>
@@ -613,12 +604,10 @@
       <button type="button" class="btn btn-ghost" onclick="cancelResolveIssueModal()" data-i18n="btn_cancel">Отмена</button>
       <button type="button" class="btn btn-primary" onclick="saveResolveIssue()" data-i18n="btn_save_resolve">Сохранить в журнал</button>
     </div>
-  </div>
-</div>
+</dialog>
 
 <!-- ===================== MODAL: PLAN ===================== -->
-<div class="modal-overlay" id="planModal">
-  <div class="modal">
+<dialog class="modal" id="planModal">
     <div class="modal-header">
       <div class="modal-title" id="planModalTitle" data-i18n="modal_newPlan">Новый план</div>
       <button class="btn btn-ghost btn-icon" onclick="closePlanModal()">✕</button>
@@ -678,11 +667,9 @@
       <button class="btn btn-ghost"   onclick="closePlanModal()" data-i18n="btn_cancel">Отмена</button>
       <button class="btn btn-primary" onclick="savePlan()"       data-i18n="btn_save">Сохранить</button>
     </div>
-  </div>
-</div>
+</dialog>
 
-<div class="modal-overlay" id="planResolveModal">
-  <div class="modal">
+<dialog class="modal" id="planResolveModal">
     <div class="modal-header">
       <div class="modal-title" data-i18n="modal_resolvePlan">Завершение плана</div>
       <button type="button" class="btn btn-ghost btn-icon" onclick="cancelResolvePlanModal()">✕</button>
@@ -725,11 +712,9 @@
       <button type="button" class="btn btn-ghost" onclick="cancelResolvePlanModal()" data-i18n="btn_cancel">Отмена</button>
       <button type="button" class="btn btn-primary" onclick="saveResolvePlan()" data-i18n="btn_save_plan_resolve">Сохранить в журнал</button>
     </div>
-  </div>
-</div>
+</dialog>
 
-<div class="modal-overlay" id="taskCreateModal">
-  <div class="modal">
+<dialog class="modal" id="taskCreateModal">
     <div class="modal-header">
       <div class="modal-title" data-i18n="tasks_modal_create_title">В очередь задач</div>
       <button type="button" class="btn btn-ghost btn-icon" onclick="closeTaskCreateModal()">✕</button>
@@ -750,11 +735,9 @@
       <button type="button" class="btn btn-ghost" onclick="closeTaskCreateModal()" data-i18n="btn_cancel">Отмена</button>
       <button type="button" class="btn btn-primary" onclick="saveTaskCreateModal()" data-i18n="tasks_btn_enqueue">Добавить</button>
     </div>
-  </div>
-</div>
+</dialog>
 
-<div class="modal-overlay" id="taskAppendModal">
-  <div class="modal">
+<dialog class="modal" id="taskAppendModal">
     <div class="modal-header">
       <div class="modal-title" data-i18n="tasks_modal_append_title">Дополнение к задаче</div>
       <button type="button" class="btn btn-ghost btn-icon" onclick="closeTaskAppendModal()">✕</button>
@@ -771,11 +754,9 @@
       <button type="button" class="btn btn-ghost" onclick="closeTaskAppendModal()" data-i18n="btn_cancel">Отмена</button>
       <button type="button" class="btn btn-primary" onclick="saveTaskAppendModal()" data-i18n="btn_save">Сохранить</button>
     </div>
-  </div>
-</div>
+</dialog>
 
-<div class="modal-overlay" id="taskCompleteModal">
-  <div class="modal">
+<dialog class="modal" id="taskCompleteModal">
     <div class="modal-header">
       <div class="modal-title" data-i18n="tasks_modal_complete_title">Завершение и запись в журнал</div>
       <button type="button" class="btn btn-ghost btn-icon" onclick="cancelTaskCompleteModal()">✕</button>
@@ -814,14 +795,12 @@
       <button type="button" class="btn btn-ghost" onclick="cancelTaskCompleteModal()" data-i18n="btn_cancel">Отмена</button>
       <button type="button" class="btn btn-primary" onclick="saveTaskCompleteModal()" data-i18n="btn_save_plan_resolve">Сохранить в журнал</button>
     </div>
-  </div>
-</div>
+</dialog>
 
 <!-- ===================== INVENTORY MODALS ===================== -->
 
 <!-- Template editor (create/edit) -->
-<div class="modal-overlay" id="invTemplateModal">
-  <div class="modal modal-large">
+<dialog class="modal modal-large" id="invTemplateModal">
     <div class="modal-header">
       <div class="modal-title" id="invTemplateModalTitle" data-i18n="inv_modal_template_title">Шаблон описи</div>
       <button type="button" class="btn btn-ghost btn-icon" onclick="closeInventoryTemplateModal()">✕</button>
@@ -852,12 +831,10 @@
         <button type="button" class="btn btn-primary" onclick="saveInventoryTemplateModal()" data-i18n="btn_save">Сохранить</button>
       </div>
     </div>
-  </div>
-</div>
+</dialog>
 
 <!-- New record (pick template + name) -->
-<div class="modal-overlay" id="invRecordCreateModal">
-  <div class="modal">
+<dialog class="modal" id="invRecordCreateModal">
     <div class="modal-header">
       <div class="modal-title" data-i18n="inv_modal_new_record_title">Новая опись</div>
       <button type="button" class="btn btn-ghost btn-icon" onclick="closeInventoryRecordCreateModal()">✕</button>
@@ -886,12 +863,10 @@
       <button type="button" class="btn btn-ghost" onclick="closeInventoryRecordCreateModal()" data-i18n="btn_cancel">Отмена</button>
       <button type="button" class="btn btn-primary" onclick="saveInventoryRecordCreateModal()" data-i18n="inv_btn_create">Создать</button>
     </div>
-  </div>
-</div>
+</dialog>
 
 <!-- Rename inventory record (без window.prompt для Electron) -->
-<div class="modal-overlay" id="invRecordRenameModal">
-  <div class="modal">
+<dialog class="modal" id="invRecordRenameModal">
     <div class="modal-header">
       <div class="modal-title" data-i18n="inv_modal_rename_record_title">Переименовать опись</div>
       <button type="button" class="btn btn-ghost btn-icon" onclick="closeInvRecordRenameModal()">✕</button>
@@ -909,12 +884,10 @@
       <button type="button" class="btn btn-ghost" onclick="closeInvRecordRenameModal()" data-i18n="btn_cancel">Отмена</button>
       <button type="button" class="btn btn-primary" onclick="confirmInvRecordRenameModal()" data-i18n="btn_save">Сохранить</button>
     </div>
-  </div>
-</div>
+</dialog>
 
 <!-- New custom dictionary (no window.prompt — в Electron prompt не работает) -->
-<div class="modal-overlay" id="invDictCreateModal">
-  <div class="modal">
+<dialog class="modal" id="invDictCreateModal">
     <div class="modal-header">
       <div class="modal-title" data-i18n="inv_dict_btn_new">+ Новый справочник</div>
       <button type="button" class="btn btn-ghost btn-icon" onclick="closeInvDictCreateModal()">✕</button>
@@ -934,12 +907,10 @@
       <button type="button" class="btn btn-ghost" onclick="closeInvDictCreateModal()" data-i18n="btn_cancel">Отмена</button>
       <button type="button" class="btn btn-primary" onclick="confirmInvDictCreateModal()" data-i18n="inv_btn_create">Создать</button>
     </div>
-  </div>
-</div>
+</dialog>
 
 <!-- Item editor (add/edit row inside record) -->
-<div class="modal-overlay" id="invItemModal">
-  <div class="modal modal-large">
+<dialog class="modal modal-large" id="invItemModal">
     <div class="modal-header">
       <div class="modal-title" id="invItemModalTitle" data-i18n="inv_modal_item_title">Позиция описи</div>
       <button type="button" class="btn btn-ghost btn-icon" onclick="closeInventoryItemModal()">✕</button>
@@ -951,8 +922,7 @@
       <button type="button" class="btn btn-ghost" onclick="closeInventoryItemModal()" data-i18n="btn_cancel">Отмена</button>
       <button type="button" class="btn btn-primary" onclick="saveInventoryItemModal()" data-i18n="btn_save">Сохранить</button>
     </div>
-  </div>
-</div>
+</dialog>
 
 <!-- ===================== SCRIPTS (в конце, чтобы все модалки уже в DOM) ===================== -->
 <script src="i18n/ru.js"></script>
