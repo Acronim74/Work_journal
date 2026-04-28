@@ -1532,6 +1532,56 @@ function toast(msg, type = '') {
 /* ============================================================
    KEYBOARD
    ============================================================ */
+
+/**
+ * Верхний открытый <dialog> для Escape. Каскадное закрытие всех модалок подряд ломает top-layer
+ * в Chromium/Electron (висящий backdrop, мёртвый ввод) — закрываем ровно одну за раз.
+ */
+function getTopModalDialogEl() {
+  const ae = document.activeElement;
+  if (ae && typeof ae.closest === 'function') {
+    const fromFocus = ae.closest('dialog.modal[open]');
+    if (fromFocus) return fromFocus;
+  }
+  const list = document.querySelectorAll('dialog.modal[open]');
+  return list.length ? list[list.length - 1] : null;
+}
+
+function closeTopModalDialogForEscape() {
+  const dlg = getTopModalDialogEl();
+  if (!dlg) return false;
+  switch (dlg.id) {
+    case 'entryModal':        cancelEntryModal(); break;
+    case 'catModal':          closeCatModal(); break;
+    case 'viewModal':         closeViewModal(); break;
+    case 'issueModal':        cancelIssueModal(); break;
+    case 'issueResolveModal': cancelResolveIssueModal(); break;
+    case 'planModal':         closePlanModal(); break;
+    case 'planResolveModal':  cancelResolvePlanModal(); break;
+    case 'taskCreateModal':   closeTaskCreateModal(); break;
+    case 'taskAppendModal':   closeTaskAppendModal(); break;
+    case 'taskCompleteModal': cancelTaskCompleteModal(); break;
+    case 'invTemplateModal':
+      if (typeof closeInventoryTemplateModal === 'function') closeInventoryTemplateModal();
+      break;
+    case 'invRecordCreateModal':
+      if (typeof closeInventoryRecordCreateModal === 'function') closeInventoryRecordCreateModal();
+      break;
+    case 'invRecordRenameModal':
+      if (typeof closeInvRecordRenameModal === 'function') closeInvRecordRenameModal();
+      break;
+    case 'invDictCreateModal':
+      if (typeof closeInvDictCreateModal === 'function') closeInvDictCreateModal();
+      break;
+    case 'invItemModal':
+      if (typeof closeInventoryItemModal === 'function') closeInventoryItemModal();
+      break;
+    default:
+      _modalHide(dlg.id);
+  }
+  return true;
+}
+
 document.addEventListener('keydown', e => {
   // Lightbox navigation
   if (document.getElementById('lightbox').classList.contains('open')) {
@@ -1539,15 +1589,8 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight') { lightboxNext(); return; }
     if (e.key === 'ArrowLeft')  { lightboxPrev(); return; }
   }
-  if (e.key === 'Escape') {
-    cancelEntryModal(); closeCatModal(); closeViewModal();
-    cancelIssueModal(); cancelResolveIssueModal(); closePlanModal(); cancelResolvePlanModal();
-    closeTaskCreateModal(); closeTaskAppendModal(); cancelTaskCompleteModal();
-    if (typeof closeInventoryTemplateModal === 'function') closeInventoryTemplateModal();
-    if (typeof closeInventoryRecordCreateModal === 'function') closeInventoryRecordCreateModal();
-    if (typeof closeInventoryItemModal === 'function') closeInventoryItemModal();
-    if (typeof closeInvRecordRenameModal === 'function') closeInvRecordRenameModal();
-    if (typeof closeInvDictCreateModal === 'function') closeInvDictCreateModal();
+  if (e.key === 'Escape' && closeTopModalDialogForEscape()) {
+    e.preventDefault();
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     if (document.getElementById('entryModal')?.open)        saveEntry();

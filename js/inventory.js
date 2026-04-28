@@ -975,12 +975,6 @@ async function confirmInvRecordRenameModal() {
 let invItemEditing = null; // { recordId, itemId|null, values:{}, _origValues:{} }
 let invRecordRenameId = null; // id описи для модалки переименования
 
-/**
- * Ключ структуры формы: если шаблон не менялся — переиспользуем существующие <input> элементы
- * вместо пересоздания через innerHTML, чтобы не накапливать TSF-контексты Chromium/Windows.
- */
-let _invItemFormKey = null;
-
 /** Закрыть прочие модалки инвентаризации через штатные close-функции (с blur и полной очисткой). */
 function dismissInventoryModals(keep) {
   if (keep !== 'template')     closeInventoryTemplateModal();
@@ -1075,24 +1069,17 @@ async function showInventoryItemModal(rec, isNew) {
     : (L.inv_modal_item_edit_title || 'Редактирование позиции');
 
   const body = document.getElementById('invItemFormBody');
+  if (!body) return;
   const fields = invGetRecordFields(rec);
   const dictMap = await invLoadDictionariesMap();
 
-  const formKey = _invItemFormKeyOf(fields);
-  if (formKey !== _invItemFormKey || !body.querySelector('.form-grid')) {
-    // Структура шаблона изменилась (или форма пуста) — перестраиваем HTML.
-    // Это создаёт новые <input>-элементы и новые TSF-контексты.
-    body.innerHTML = `<div class="form-grid">${fields.map(f => renderInventoryItemFieldInput(f, dictMap)).join('')}</div>`;
-    _invItemFormKey = formKey;
-  } else {
-    // Шаблон не изменился — обновляем значения на месте, не трогая DOM-элементы.
-    // Один и тот же набор <input> переиспользуется — TSF-контексты не накапливаются.
-    _invItemFormSetValues(body, fields);
-  }
-
   invItemFormEnsureDelegatedHandlers();
+  body.innerHTML = `<div class="form-grid">${fields.map(f => renderInventoryItemFieldInput(f, dictMap)).join('')}</div>`;
+
   document.getElementById('invItemModal')?.showModal();
-  setTimeout(() => body.querySelector('input,select,textarea')?.focus(), 50);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => body.querySelector('input,select,textarea')?.focus());
+  });
 }
 
 /** Один раз вешаем делегирование: надёжнее inline oninput/onchange (dataset, всплытие). */
@@ -1102,58 +1089,6 @@ function invItemFormEnsureDelegatedHandlers() {
   body.dataset.invDeleg = '1';
   body.addEventListener('input', invItemFormDelegatedInput);
   body.addEventListener('change', invItemFormDelegatedChange);
-}
-
-/**
- * Подпись структуры полей — по ней определяем, изменился ли шаблон.
- */
-function _invItemFormKeyOf(fields) {
-  return fields.map(f =>
-    `${f.key}:${f.type}:${f.unitMode || ''}:${(f.compositeParts || []).join(',')}`
-  ).join('|');
-}
-
-/**
- * Обновить значения существующих <input>/<select>/<checkbox> в форме без пересоздания DOM.
- * Вызывается когда структура шаблона не изменилась — элементы остаются теми же самыми,
- * TSF-контексты Chromium/Windows не накапливаются.
- */
-function _invItemFormSetValues(body, fields) {
-  const vals = invItemEditing?.values || {};
-  fields.forEach(f => {
-    const key = f.key;
-    const val = vals[key];
-    // Собираем все элементы с data-inv-key === key
-    const els = Array.from(body.querySelectorAll('[data-inv-key]'))
-      .filter(e => e.getAttribute('data-inv-key') === key);
-    if (!els.length) return;
-
-    if (f.type === 'composite') {
-      const arr = invCompositeToArray(f, val);
-      els.filter(e => e.getAttribute('data-inv-part') != null).forEach(inp => {
-        inp.value = arr[parseInt(inp.getAttribute('data-inv-part'), 10)] || '';
-      });
-    } else if (f.type === 'multi_select') {
-      const sel = Array.isArray(val) ? val.map(String) : [];
-      els.filter(e => e.type === 'checkbox').forEach(cb => {
-        cb.checked = sel.includes(String(cb.getAttribute('data-opt') || ''));
-      });
-    } else if (f.type === 'boolean') {
-      const cb = els.find(e => e.type === 'checkbox');
-      if (cb) cb.checked = !!val;
-    } else if (f.type === 'number' && f.unitMode === 'dictionary') {
-      const o = (val && typeof val === 'object' && !Array.isArray(val))
-        ? val : { amount: null, unit: '' };
-      els.forEach(e => {
-        if (e.type === 'number') e.value = o.amount == null ? '' : String(o.amount);
-        else if (e.tagName === 'SELECT') e.value = o.unit || '';
-      });
-    } else {
-      const el = els[0];
-      if (el.tagName === 'SELECT') el.value = String(val ?? '');
-      else el.value = val ?? '';
-    }
-  });
 }
 
 function invItemFormDelegatedInput(e) {
@@ -1345,16 +1280,18 @@ function onInventoryItemFieldChange(key, raw, type) {
 }
 
 function closeInventoryItemModal() {
+  const dlg = document.getElementById('invItemModal');
+  const ae = document.activeElement;
+  if (dlg && ae && typeof ae.closest === 'function' && ae.closest('#invItemModal') && typeof ae.blur === 'function') {
+    ae.blur();
+  }
   _invModalHide('invItemModal');
   const body = document.getElementById('invItemFormBody');
   if (body) {
     body.removeEventListener('input',  invItemFormDelegatedInput);
     body.removeEventListener('change', invItemFormDelegatedChange);
     body.removeAttribute('data-inv-deleg');
-    // НЕ очищаем innerHTML: существующие <input>-элементы остаются живыми в DOM,
-    // чтобы при следующем открытии с тем же шаблоном переиспользовать их.
-    // Это предотвращает накопление TSF-контекстов Chromium/Windows, которое
-    // после 8-9 циклов лишает все текстовые поля ввода с клавиатуры.
+    body.innerHTML = '';
   }
   invItemEditing = null;
 }
