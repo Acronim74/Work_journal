@@ -1605,41 +1605,52 @@ document.addEventListener('keydown', e => {
   }
 });
 
-document.getElementById('entryModal')?.addEventListener('click', e => {
-  if (e.target === e.currentTarget) cancelEntryModal();
-});
-document.getElementById('catModal')?.addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeCatModal();
-});
-document.getElementById('issueModal')?.addEventListener('click', e => {
-  if (e.target === e.currentTarget) cancelIssueModal();
-});
-document.getElementById('planModal')?.addEventListener('click', e => {
-  if (e.target === e.currentTarget) closePlanModal();
-});
-document.getElementById('issueResolveModal')?.addEventListener('click', e => {
-  if (e.target === e.currentTarget) cancelResolveIssueModal();
-});
-document.getElementById('planResolveModal')?.addEventListener('click', e => {
-  if (e.target === e.currentTarget) cancelResolvePlanModal();
-});
-document.getElementById('taskCreateModal')?.addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeTaskCreateModal();
-});
-document.getElementById('taskAppendModal')?.addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeTaskAppendModal();
-});
-document.getElementById('taskCompleteModal')?.addEventListener('click', e => {
-  if (e.target === e.currentTarget) cancelTaskCompleteModal();
-});
+/**
+ * Клик по backdrop <dialog> и preventDefault на cancel (ESC), чтобы закрытие шло через наши close* / cancel*.
+ * В Electron DOM может быть неполным в момент синхронного прогона скрипта — вешаем после DOMContentLoaded.
+ * Если документ уже загружен (скрипты в конце body), вызываем сразу.
+ */
+function setupAppModalUiHandlers() {
+  document.getElementById('entryModal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) cancelEntryModal();
+  });
+  document.getElementById('catModal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeCatModal();
+  });
+  document.getElementById('issueModal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) cancelIssueModal();
+  });
+  document.getElementById('planModal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closePlanModal();
+  });
+  document.getElementById('issueResolveModal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) cancelResolveIssueModal();
+  });
+  document.getElementById('planResolveModal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) cancelResolvePlanModal();
+  });
+  document.getElementById('taskCreateModal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeTaskCreateModal();
+  });
+  document.getElementById('taskAppendModal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeTaskAppendModal();
+  });
+  document.getElementById('taskCompleteModal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) cancelTaskCompleteModal();
+  });
+  document.getElementById('btnOpenNewEntry')?.addEventListener('click', () => openEntryModal());
+  document.getElementById('btnOpenNewCat')?.addEventListener('click', () => openCatModal());
 
-// Prevent native ESC-close on all <dialog> modals — our keydown handler manages cleanup + close
-document.querySelectorAll('dialog.modal').forEach(dlg => {
-  dlg.addEventListener('cancel', e => e.preventDefault());
-});
+  document.querySelectorAll('dialog.modal').forEach(dlg => {
+    dlg.addEventListener('cancel', e => e.preventDefault());
+  });
+}
 
-document.getElementById('btnOpenNewEntry')?.addEventListener('click', () => openEntryModal());
-document.getElementById('btnOpenNewCat')?.addEventListener('click', () => openCatModal());
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupAppModalUiHandlers);
+} else {
+  setupAppModalUiHandlers();
+}
 
 /* ============================================================
    ISSUES  (поломки)
