@@ -346,6 +346,7 @@ LANG_EN.inv_btn_new_record = '+ New record';
 LANG_EN.inv_btn_new_template = '+ New template';
 LANG_EN.inv_btn_add_field = 'add field';
 LANG_EN.inv_btn_add_item = 'Add item';
+LANG_EN.inv_drag_hint = 'Drag to reorder rows';
 LANG_EN.inv_btn_print = 'Print';
 LANG_EN.inv_btn_archive = 'Archive';
 LANG_EN.inv_btn_restore = 'Restore';

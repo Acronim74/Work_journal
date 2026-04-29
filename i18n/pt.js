@@ -344,6 +344,7 @@ LANG_PT.inv_btn_new_record = '+ Novo registro';
 LANG_PT.inv_btn_new_template = '+ Novo modelo';
 LANG_PT.inv_btn_add_field = 'adicionar campo';
 LANG_PT.inv_btn_add_item = 'Adicionar item';
+LANG_PT.inv_drag_hint = 'Arraste para reordenar';
 LANG_PT.inv_btn_print = 'Imprimir';
 LANG_PT.inv_btn_archive = 'Arquivar';
 LANG_PT.inv_btn_restore = 'Restaurar';

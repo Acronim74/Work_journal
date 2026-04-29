@@ -808,6 +808,17 @@ function closeInventoryRecordDetail() {
   renderInventoryPage();
 }
 
+/** Порядок позиций в БД (миграция со старых записей без поля). */
+function invItemsNeedSortOrderMigration(items) {
+  return Array.isArray(items) && items.some(it =>
+    typeof it.sortOrder !== 'number' || !Number.isFinite(it.sortOrder));
+}
+
+function invAssignSequentialSortOrder(items) {
+  if (!Array.isArray(items)) return;
+  items.forEach((it, i) => { it.sortOrder = i; });
+}
+
 async function renderInventoryRecordDetail(id) {
   const detail = document.getElementById('inventoryRecordDetail');
   if (!detail) return;
@@ -816,8 +827,19 @@ async function renderInventoryRecordDetail(id) {
     detail.innerHTML = `<div class="empty-state"><div class="empty-state-title">${invEsc(L.inv_record_not_found || 'Опись не найдена')}</div></div>`;
     return;
   }
+  if (invItemsNeedSortOrderMigration(rec.items)) {
+    (rec.items || []).forEach((it, i) => {
+      if (typeof it.sortOrder !== 'number' || !Number.isFinite(it.sortOrder)) it.sortOrder = i;
+    });
+    (rec.items || []).sort((a, b) => a.sortOrder - b.sortOrder);
+    invAssignSequentialSortOrder(rec.items);
+    rec.updatedAt = invNowIso();
+    await dbPutInventoryRecord(rec);
+    invScheduleSave();
+  }
   const fields = invGetRecordFields(rec);
-  const items  = Array.isArray(rec.items) ? rec.items : [];
+  let items = Array.isArray(rec.items) ? rec.items.slice() : [];
+  items.sort((a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0));
   const search = (document.getElementById('invItemSearch')?.value || '').toLowerCase().trim();
 
   let visibleItems = items.slice();
@@ -839,19 +861,23 @@ async function renderInventoryRecordDetail(id) {
     }
     return `<th>${invEsc(f.label)}${suf}</th>`;
   }).join('');
-  const colCount = fields.length + 1;
+  const colCount = fields.length + 2;
 
   const rowsHtml = visibleItems.length === 0
     ? `<tr><td colspan="${colCount}" style="text-align:center;color:var(--text-dim);padding:18px;">${invEsc(L.inv_no_items || 'Позиций нет — нажмите «Добавить позицию»')}</td></tr>`
     : visibleItems.map(it => {
         const cells = fields.map(f => `<td>${invEsc(invItemValueText(it, f))}</td>`).join('');
+        const hid = invEsc(L.inv_drag_hint || 'Перетащите для изменения порядка');
         return `
-          <tr>
+          <tr draggable="false" data-item-id="${invEsc(it.id)}" class="inv-sortable-row">
+            <td class="col-drag-handle" title="${hid}">
+              <span class="drag-handle" aria-hidden="true">⠿</span>
+            </td>
             ${cells}
             <td class="col-actions">
-              <button class="btn btn-ghost btn-sm" onclick="openInventoryItemEdit(${rec.id}, '${invEsc(it.id)}')">${invEsc(L.inv_btn_edit_short || 'Изм.')}</button>
-              <button class="btn btn-ghost btn-sm" onclick="duplicateInventoryItem(${rec.id}, '${invEsc(it.id)}')">${invEsc(L.inv_btn_duplicate_item || 'Копия')}</button>
-              <button class="btn btn-danger btn-sm btn-icon" title="${invEsc(L.btn_delete || 'Удалить')}" onclick="deleteInventoryItem(${rec.id}, '${invEsc(it.id)}')">🗑</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="openInventoryItemEdit(${rec.id}, '${invEsc(it.id)}')">${invEsc(L.inv_btn_edit_short || 'Изм.')}</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="duplicateInventoryItem(${rec.id}, '${invEsc(it.id)}')">${invEsc(L.inv_btn_duplicate_item || 'Копия')}</button>
+              <button type="button" class="btn btn-danger btn-sm btn-icon" title="${invEsc(L.btn_delete || 'Удалить')}" onclick="deleteInventoryItem(${rec.id}, '${invEsc(it.id)}')">🗑</button>
             </td>
           </tr>`;
       }).join('');
@@ -880,10 +906,97 @@ async function renderInventoryRecordDetail(id) {
     </div>
     <div class="inv-table-wrap">
       <table class="inv-table">
-        <thead><tr>${headers}<th class="col-actions"></th></tr></thead>
+        <thead><tr><th class="col-drag-handle" aria-hidden="true"></th>${headers}<th class="col-actions"></th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
     </div>`;
+
+  if (visibleItems.length > 0) initInvTableDragDrop(rec.id);
+}
+
+function initInvTableDragDrop(recordId) {
+  const tbody = document.querySelector('#inventoryRecordDetail .inv-table tbody');
+  if (!tbody) return;
+
+  let dragSrcRow = null;
+
+  function onDragStart(e) {
+    if (this.getAttribute('draggable') !== 'true') {
+      e.preventDefault();
+      return;
+    }
+    dragSrcRow = this;
+    this.classList.add('inv-row-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.dataset.itemId || '');
+  }
+
+  function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const row = e.currentTarget;
+    if (row === dragSrcRow) return;
+    tbody.querySelectorAll('tr.inv-sortable-row').forEach(r => r.classList.remove('inv-row-drop-target'));
+    row.classList.add('inv-row-drop-target');
+  }
+
+  function onDragLeave() {
+    this.classList.remove('inv-row-drop-target');
+  }
+
+  async function onDrop(e) {
+    e.preventDefault();
+    if (!dragSrcRow || dragSrcRow === this) return;
+    this.classList.remove('inv-row-drop-target');
+    tbody.insertBefore(dragSrcRow, this);
+    await saveInvItemOrder(recordId);
+  }
+
+  function onDragEnd() {
+    this.classList.remove('inv-row-dragging');
+    this.setAttribute('draggable', 'false');
+    tbody.querySelectorAll('tr.inv-sortable-row').forEach(r => r.classList.remove('inv-row-drop-target'));
+    dragSrcRow = null;
+  }
+
+  tbody.querySelectorAll('tr.inv-sortable-row').forEach(row => {
+    const handle = row.querySelector('.drag-handle');
+    if (handle) {
+      handle.addEventListener('mousedown', () => { row.setAttribute('draggable', 'true'); }, { passive: true });
+    }
+    row.addEventListener('dragstart', onDragStart);
+    row.addEventListener('dragover', onDragOver);
+    row.addEventListener('dragleave', onDragLeave);
+    row.addEventListener('drop', onDrop);
+    row.addEventListener('dragend', onDragEnd);
+  });
+}
+
+async function saveInvItemOrder(recordId) {
+  const tbody = document.querySelector('#inventoryRecordDetail .inv-table tbody');
+  if (!tbody) return;
+
+  const rec = await dbGetInventoryRecord(recordId);
+  if (!rec) return;
+
+  const newOrder = Array.from(tbody.querySelectorAll('tr[data-item-id]'))
+    .map(tr => tr.dataset.itemId)
+    .filter(Boolean);
+
+  const itemMap = new Map((rec.items || []).map(it => [String(it.id), it]));
+  const reordered = newOrder
+    .map(id => itemMap.get(String(id)))
+    .filter(Boolean);
+
+  const inDom = new Set(newOrder.map(String));
+  const hidden = (rec.items || []).filter(it => !inDom.has(String(it.id)));
+
+  rec.items = [...reordered, ...hidden];
+  invAssignSequentialSortOrder(rec.items);
+  rec.updatedAt = invNowIso();
+  await dbPutInventoryRecord(rec);
+  invScheduleSave();
+  await renderInventoryRecordDetail(recordId);
 }
 
 function invItemValueText(item, field) {
@@ -1171,6 +1284,7 @@ async function saveInlineInventoryItem() {
     items.push({ id: invUuid(), values: outVals, createdAt: invNowIso(), updatedAt: invNowIso() });
   }
 
+  invAssignSequentialSortOrder(items);
   rec.items = items;
   rec.updatedAt = invNowIso();
   await dbPutInventoryRecord(rec);
@@ -1481,6 +1595,7 @@ async function saveInventoryItemModal() {
       updatedAt: invNowIso(),
     });
   }
+  invAssignSequentialSortOrder(items);
   rec.items = items;
   rec.updatedAt = invNowIso();
   await dbPutInventoryRecord(rec);
@@ -1507,6 +1622,7 @@ async function duplicateInventoryItem(recordId, itemId) {
     updatedAt: invNowIso(),
   };
   rec.items = [...(rec.items || []), copy];
+  invAssignSequentialSortOrder(rec.items);
   rec.updatedAt = invNowIso();
   await dbPutInventoryRecord(rec);
   invToast(L.inv_toast_item_duplicated || 'Позиция скопирована', 'success');
@@ -1519,6 +1635,7 @@ async function deleteInventoryItem(recordId, itemId) {
   const rec = await dbGetInventoryRecord(recordId);
   if (!rec) return;
   rec.items = (rec.items || []).filter(x => String(x.id) !== String(itemId));
+  invAssignSequentialSortOrder(rec.items);
   rec.updatedAt = invNowIso();
   await dbPutInventoryRecord(rec);
   invToast(L.inv_toast_item_deleted || 'Позиция удалена', 'success');
@@ -1533,7 +1650,8 @@ async function printInventoryRecord(id) {
   const rec = await dbGetInventoryRecord(id);
   if (!rec) return;
   const fields = invGetRecordFields(rec);
-  const items  = Array.isArray(rec.items) ? rec.items : [];
+  let items = Array.isArray(rec.items) ? rec.items.slice() : [];
+  items.sort((a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0));
 
   const headers = fields.map(f => {
     let suf = '';

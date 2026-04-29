@@ -344,6 +344,7 @@ LANG_RO.inv_btn_new_record = '+ Registru nou';
 LANG_RO.inv_btn_new_template = '+ Șablon nou';
 LANG_RO.inv_btn_add_field = 'adaugă câmp';
 LANG_RO.inv_btn_add_item = 'Adaugă poziție';
+LANG_RO.inv_drag_hint = 'Trageți pentru a reordona';
 LANG_RO.inv_btn_print = 'Tipărește';
 LANG_RO.inv_btn_archive = 'Arhivă';
 LANG_RO.inv_btn_restore = 'Restaurează';

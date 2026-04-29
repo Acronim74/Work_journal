@@ -352,6 +352,7 @@ LANG_RU.inv_btn_new_record = '+ Новая опись';
 LANG_RU.inv_btn_new_template = '+ Новый шаблон';
 LANG_RU.inv_btn_add_field = 'добавить поле';
 LANG_RU.inv_btn_add_item = 'Добавить позицию';
+LANG_RU.inv_drag_hint = 'Перетащите для изменения порядка';
 LANG_RU.inv_btn_print = 'Печать';
 LANG_RU.inv_btn_archive = 'В архив';
 LANG_RU.inv_btn_restore = 'Восстановить';

@@ -346,6 +346,7 @@ LANG_PL.inv_btn_new_record = '+ Nowy spis';
 LANG_PL.inv_btn_new_template = '+ Nowy szablon';
 LANG_PL.inv_btn_add_field = 'dodaj pole';
 LANG_PL.inv_btn_add_item = 'Dodaj pozycję';
+LANG_PL.inv_drag_hint = 'Przeciągnij, aby zmienić kolejność';
 LANG_PL.inv_btn_print = 'Drukuj';
 LANG_PL.inv_btn_archive = 'Do archiwum';
 LANG_PL.inv_btn_restore = 'Przywróć';

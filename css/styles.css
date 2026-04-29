@@ -761,12 +761,13 @@ dialog.modal::backdrop {
    ============================================================ */
 .toast-container {
   position: fixed;
-  bottom: 20px;
+  top: 20px;
   right: 20px;
+  bottom: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 8000;
+  z-index: 200;
   pointer-events: none;
 }
 
@@ -786,8 +787,8 @@ dialog.modal::backdrop {
 .toast.success { border-left-color: var(--success); }
 
 @keyframes toastIn {
-  from { transform: translateX(30px); opacity: 0; }
-  to   { transform: translateX(0);    opacity: 1; }
+  from { transform: translateY(-16px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
 }
 
 /* ============================================================
@@ -1731,6 +1732,45 @@ a.btn { text-decoration: none; }
 
 .inv-table tbody tr:hover { background: rgba(255,255,255,0.03); }
 .inv-table .col-actions { width: 1%; white-space: nowrap; text-align: right; }
+
+/* ============================================================
+   INVENTORY — drag & drop строк в таблице описи
+   ============================================================ */
+.col-drag-handle {
+  width: 28px;
+  text-align: center;
+  padding: 0 4px;
+  color: var(--text-dim);
+  vertical-align: middle;
+}
+
+.drag-handle {
+  cursor: grab;
+  font-size: 16px;
+  user-select: none;
+  display: inline-block;
+  padding: 4px;
+  color: var(--text-muted);
+  transition: color 0.15s;
+}
+
+.drag-handle:hover {
+  color: var(--accent);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.inv-row-dragging {
+  opacity: 0.45;
+  background: var(--surface3);
+}
+
+.inv-row-drop-target {
+  background: var(--accent-dim);
+  outline: 1px solid var(--accent-border);
+}
 
 .inv-record-card,
 .inv-template-card {
