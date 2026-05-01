@@ -210,6 +210,8 @@ async function renderIssuesReportPreview() {
   const catVal = document.getElementById('rCatFilter').value;
   let issues = await dbGetAllIssues();
   issues = issues.filter(i => i.date >= period.from && i.date <= period.to);
+  // Устранённые поломки попадают в журнал работ — в отчёте по поломкам их не показываем
+  issues = issues.filter(i => i.status !== 'resolved');
   if (catVal) issues = issues.filter(i => i.category === catVal);
   issues.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
@@ -418,6 +420,8 @@ async function printIssuesReport(period) {
   const catVal = document.getElementById('rCatFilter').value;
   let issues = await dbGetAllIssues();
   issues = issues.filter(i => i.date >= period.from && i.date <= period.to);
+  // Устранённые поломки видны только через печать журнала работ
+  issues = issues.filter(i => i.status !== 'resolved');
   if (catVal) issues = issues.filter(i => i.category === catVal);
   issues.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   if (issues.length === 0) return;

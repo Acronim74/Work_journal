@@ -1935,6 +1935,9 @@ async function renderIssues() {
   const stF    = document.getElementById('issueFilterStatus')?.value || '';
 
   let items = await dbGetAllIssues();
+  // Resolved issues живут как записи журнала работ (через resolutionEntryId).
+  // В активном списке поломок их не показываем — как сделано для планов (status !== 'done').
+  items = items.filter(i => i.status !== 'resolved');
 
   // Sort: open first, then by date desc
   const statusOrder = { open: 0, inprogress: 1, resolved: 2 };
