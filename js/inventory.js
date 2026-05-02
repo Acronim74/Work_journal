@@ -1824,17 +1824,7 @@ function _invWaitForDbAndSeed(triesLeft) {
 document.addEventListener('DOMContentLoaded', () => {
   _invWaitForDbAndSeed(40);
 
-  // Click outside modal → close (consistent with non-inventory modals)
-  const _invClickOutside = [
-    ['invTemplateModal',     closeInventoryTemplateModal],
-    ['invRecordCreateModal', closeInventoryRecordCreateModal],
-    ['invItemModal',         closeInventoryItemModal],
-    ['invRecordRenameModal', closeInvRecordRenameModal],
-    ['invDictCreateModal',   closeInvDictCreateModal],
-  ];
-  for (const [id, fn] of _invClickOutside) {
-    document.getElementById(id)?.addEventListener('click', e => {
-      if (e.target === e.currentTarget) fn();
-    });
-  }
+  // Закрытие по клику на фон (backdrop) убрано: при случайном выходе курсора
+  // за пределы окна пользователь терял введённые данные.
+  // Закрытие — только через ✕, «Отмена» или Esc.
 });

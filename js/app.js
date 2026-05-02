@@ -1611,33 +1611,10 @@ document.addEventListener('keydown', e => {
  * Если документ уже загружен (скрипты в конце body), вызываем сразу.
  */
 function setupAppModalUiHandlers() {
-  document.getElementById('entryModal')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) cancelEntryModal();
-  });
-  document.getElementById('catModal')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeCatModal();
-  });
-  document.getElementById('issueModal')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) cancelIssueModal();
-  });
-  document.getElementById('planModal')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) closePlanModal();
-  });
-  document.getElementById('issueResolveModal')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) cancelResolveIssueModal();
-  });
-  document.getElementById('planResolveModal')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) cancelResolvePlanModal();
-  });
-  document.getElementById('taskCreateModal')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeTaskCreateModal();
-  });
-  document.getElementById('taskAppendModal')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeTaskAppendModal();
-  });
-  document.getElementById('taskCompleteModal')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) cancelTaskCompleteModal();
-  });
+  // Раньше клик по фону (backdrop) закрывал модалку — это приводило к потере
+  // введённых данных при случайном выходе курсора за пределы окна.
+  // Теперь модалки закрываются ТОЛЬКО явно: кнопкой ✕, кнопкой «Отмена» или Esc.
+
   document.getElementById('btnOpenNewEntry')?.addEventListener('click', () => openEntryModal());
   document.getElementById('btnOpenNewCat')?.addEventListener('click', () => openCatModal());
 
